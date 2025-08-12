@@ -1,0 +1,54 @@
+# Emacs/ELPA/etc.
+
+auto-save/
+auto-save-list/
+elpa/
+var/
+etc/
+org-persist/
+straight/
+transient/
+tutorial/
+url/
+games/
+
+ielm-history.eld
+*.elc
+*~
+\#*\#
+.\#*
+
+
+# Compiled
+*.elc
+
+# Packaging
+.cask
+elpaca/*
+
+# Personal files
+ido.last
+.mc-lists.el
+.yas*
+auto-save-list
+move-line-region.el
+ac-comphist.dat
+recentf*
+tramp
+eshell
+
+url/*
+elpy/*
+semanticdb/*
+request/*
+srecode-map.el
+.org-id-locations
+
+package-quickstart.el
+custom.el
+image-dired/
+newsticker/
+
+
+# OS
+.DS_Store
