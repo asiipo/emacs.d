@@ -44,6 +44,9 @@
   "Mode for the startup key cheatsheet."
   (read-only-mode 1)
   (setq truncate-lines t)
+  (setq-local buffer-face-mode-face 'fixed-pitch)
+  (buffer-face-mode 1)
+  (orgtbl-mode 1)
   (define-key my/cheatsheet-mode-map (kbd "g") #'my/cheatsheet-refresh)
   (define-key my/cheatsheet-mode-map (kbd "q") #'quit-window))
 
@@ -110,15 +113,7 @@
     (save-excursion (org-table-align))))
 
 
-(define-derived-mode my/cheatsheet-mode special-mode "Cheatsheet"
-  "Mode for the startup key cheatsheet."
-  (read-only-mode 1)
-  (setq truncate-lines t)
-  (setq-local buffer-face-mode-face 'fixed-pitch)
-  (buffer-face-mode 1)
-  (orgtbl-mode 1)                                 ;; <— important
-  (define-key my/cheatsheet-mode-map (kbd "g") #'my/cheatsheet-refresh)
-  (define-key my/cheatsheet-mode-map (kbd "q") #'quit-window))
+;; (second duplicate definition removed)
 
 
 
@@ -162,6 +157,9 @@
           (lambda ()
             (my/cheatsheet-show)
             (delete-other-windows)))  ;; ensure a single window
+
+;; Global shortcut to open the welcome view from anywhere
+(global-set-key (kbd "C-c h") #'my/cheatsheet-show)
 
 
 (provide 'welcome)

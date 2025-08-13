@@ -12,6 +12,8 @@ transient/
 tutorial/
 url/
 games/
+pdf/
+*.pdf
 
 ielm-history.eld
 *.elc
@@ -32,6 +34,7 @@ ido.last
 .mc-lists.el
 .yas*
 auto-save-list
+bookmarks
 move-line-region.el
 ac-comphist.dat
 recentf*

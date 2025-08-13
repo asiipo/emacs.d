@@ -1,9 +1,10 @@
 ;; ---- Reading dashboard (robust) ----
+(require 'org)         ;; core org APIs used throughout
+(require 'org-table)   ;; org-table-align
 (require 'org-element) ;; needed for reliable planning parsing
+(require 'subr-x)      ;; string-empty-p, etc.
 
-;; Where Org files live
-(setq org-directory (expand-file-name "~/org"))
-
+;; Uses `org-directory` defined centrally in init.el
 
 ;; Path to your reading tracker file (must be defined before first use)
 (defvar my/org-reading-file (expand-file-name "reading.org" org-directory)

@@ -1,9 +1,16 @@
 (custom-set-variables
- ;; If you edit by hand, keep only one custom-set-variables in your config.
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
  '(custom-enabled-themes '(modus-operandi-tinted))
  '(package-selected-packages '(magit))
- '(scroll-bar-mode nil))                       ; hide GUI scrollbars
+ '(scroll-bar-mode nil))
+                       ; hide GUI scrollbars
 
 (custom-set-faces
- ;; If you edit by hand, keep only one custom-set-faces in your config.
- '(default ((t (:family "Menlo" :slant normal :weight regular :height 240 :width normal)))))
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(default ((t (:family "Menlo" :slant normal :weight regular :height 200 :width normal :foundry "nil")))))
