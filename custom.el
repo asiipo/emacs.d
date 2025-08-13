@@ -4,6 +4,9 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(custom-enabled-themes '(modus-operandi-tinted))
+ '(org-agenda-files
+   '("/Users/arttu/org/inbox.org" "/Users/arttu/org/areas/journal.org"
+     "/Users/arttu/org/areas/reading.org"))
  '(package-selected-packages '(magit))
  '(scroll-bar-mode nil))
                        ; hide GUI scrollbars

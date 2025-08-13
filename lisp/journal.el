@@ -1,31 +1,49 @@
-;;; journal.el --- Simple DateTree journal  -*- lexical-binding: t; -*-
+;;; journal.el --- Simple DateTree journal -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Minimal journaling helper using a single DateTree file at ~/org/journal.org.
+;; Minimal journaling helper using a single DateTree file at ~/org/areas/journal.org.
 ;; Provides:
 ;;  - Capture template "j": Journal (today) → DateTree in journal.org
 ;;  - Command `my/journal-capture-today` (bound to C-c j)
 ;;  - (Optional) `my/journal-open-today` to jump to today's node
-
-;; Uses `org-directory` defined centrally in init.el
+;; 
+;; Based on Org Mode Guide section 8.1 (Timestamps) and 9.1 (Capture)
 
 ;;; Code:
+
+;; ============================================================================
+;; DEPENDENCIES
+;; ============================================================================
 
 (require 'org)
 (require 'org-datetree)
 (require 'subr-x)
 
+;; ============================================================================
+;; CONFIGURATION
+;; ============================================================================
 
-(defvar my/org-journal-file (expand-file-name "journal.org" org-directory)
-  "Path to the journal file (DateTree).")
+;; Path to journal file in Areas directory
+(defvar my/org-journal-file (expand-file-name "areas/journal.org" org-directory)
+  "Path to the journal file (DateTree) in the Areas directory.")
+
+;; ============================================================================
+;; FILE MANAGEMENT
+;; ============================================================================
 
 (defun my/journal--ensure-file ()
-  "Create the journal file with a title if it doesn't exist."
+  "Create the journal file with a title if it doesn't exist.
+Ensures the journal file exists with proper Org structure."
   (unless (file-exists-p my/org-journal-file)
     (with-temp-file my/org-journal-file
       (insert "#+TITLE: Journal\n"))))
 
-;; Capture template (adds non-destructively to your existing templates)
+;; ============================================================================
+;; CAPTURE TEMPLATE INTEGRATION
+;; ============================================================================
+
+;; Add journal capture template to existing templates
+;; Based on Org Mode Guide section 9.1
 (with-eval-after-load 'org
   (my/journal--ensure-file)
   (let ((tpl '("j" "Journal (today)" entry
@@ -35,56 +53,38 @@
         (add-to-list 'org-capture-templates tpl t)
       (setq org-capture-templates (list tpl)))))
 
+;; ============================================================================
+;; JOURNAL FUNCTIONS
+;; ============================================================================
+
 (defun my/journal-capture-today ()
-  "Capture a journal entry into today's DateTree using template \=j\."
+  "Capture a journal entry into today's DateTree using template 'j'.
+Opens the capture interface with the journal template pre-selected."
   (interactive)
   (my/journal--ensure-file)
   (org-capture nil "j"))
 
 (defun my/journal-open-today ()
-  "Open the journal file and jump/create today's DateTree node."
+  "Open the journal file and jump/create today's DateTree node.
+Creates the date node if it doesn't exist, then shows the entry."
   (interactive)
   (my/journal--ensure-file)
   (find-file my/org-journal-file)
   (org-datetree-find-date-create (calendar-current-date))
   (org-show-entry))
 
+;; ============================================================================
+;; KEYBINDINGS
+;; ============================================================================
 
-;; Keybindings: global + inside org-agenda
+;; Global journal keybinding
 (global-set-key (kbd "C-c j") #'my/journal-capture-today)
 
+;; ============================================================================
+;; NOTES
+;; ============================================================================
 
-
-(with-eval-after-load 'org
-  (add-to-list 'org-agenda-files my/org-journal-file))
-
-
-(with-eval-after-load 'org
-  ;; Offer journal day nodes as refile targets and prefer single-prompt paths
-  (setq org-refile-use-outline-path 'file
-        org-outline-path-complete-in-steps nil)
-  ;; Ensure agenda files are general refile targets, in addition to journal days
-  (let* ((agenda-target '(org-agenda-files :maxlevel . 9))
-         (journal-target `(,my/org-journal-file :maxlevel . 3)))
-    (unless (member agenda-target org-refile-targets)
-      (setq org-refile-targets (cons agenda-target org-refile-targets)))
-    (unless (member journal-target org-refile-targets)
-      (setq org-refile-targets (cons journal-target org-refile-targets))))
-
-  ;; Only allow day headings (level 3) as targets within the journal file
-  (defun my/journal--refile-target-day-only ()
-    (let ((is-journal (and buffer-file-name
-                           (file-equal-p buffer-file-name my/org-journal-file))))
-      (if (not is-journal)
-          t
-        (= (org-outline-level) 3))))
-
-  (let ((prev org-refile-target-verify-function))
-    (setq org-refile-target-verify-function
-          (if prev
-              (lambda () (and (funcall prev)
-                              (my/journal--refile-target-day-only)))
-            #'my/journal--refile-target-day-only))))
+;; Journal is an Area; keep it out of agenda and let PARA refile settings apply globally
+;; This ensures the journal stays focused on daily entries rather than actionable tasks
 
 (provide 'journal)
-;;; journal.el ends here

@@ -1,47 +1,56 @@
-;;; -*- lexical-binding: t; -*-
-(require 'reading-tracker)  ;; provides my/org-reading-file, collectors, helpers
+;;; welcome.el --- Startup cheatsheet and reading dashboard -*- lexical-binding: t; -*-
+
+;; ============================================================================
+;; DEPENDENCIES
+;; ============================================================================
+
+(require 'reading-tracker)  ;; Provides my/org-reading-file, collectors, helpers
 (require 'org)               ;; org-entry-get, etc.
 (require 'org-table)         ;; org-table-align
 
+;; ============================================================================
+;; STARTUP CONFIGURATION
+;; ============================================================================
 
-
-;;; ----------------------------------------------------------------------
-;;; Startup "Welcome / Keys" page
-;;; - Shows your important key bindings
-;;; - Clickable commands
-;;; - Reopen anytime with C-c h
-;;; ----------------------------------------------------------------------
-
-
-;; Don’t show the GNU splash or a scratch message
+;; Don't show the GNU splash or a scratch message
 (setq inhibit-startup-screen t
       initial-scratch-message nil)
 
+;; ============================================================================
+;; CHEATSHEET CONFIGURATION
+;; ============================================================================
 
 ;; Curate your key cheatsheet here (add/remove as you like).
 ;; Format: either (:section "Title") or ("KEYS" "Description" COMMAND-or-nil)
 (defvar my/cheatsheet-keys
   '((:section "Org & Agenda")
     ("C-c a"   "Open agenda"                         org-agenda)
+    ("C-c A"   "Refresh agenda"                      my/refresh-agenda)
+    ("C-c i"   "Go to inbox"                         my/goto-inbox)
     ("C-c c"   "Capture menu"                        org-capture)
-    ("C-c c t" "Capture: Task to Tasks ▸ Inbox"      nil)
+    ("C-c C-w" "Refile item"                         org-refile)
+    ("C-c d"   "Go to /org"                    (lambda () (interactive) (dired org-directory)))
+    ("C-c e"   "Go to .emacs.d"                      (lambda () (interactive) (dired user-emacs-directory)))
+    ("C-c C-x a" "Archive file"                      my/org-archive-file)
 
     (:section "Reading tracker")
     ("C-c r o" "Open reading.org"                    my/org-reading-open)
+    ("C-c r b" "Open books.org"                      my/org-reading-open-books)
+    ("C-c r n" "Open book notes"                     my/org-reading-open-book-notes)
     ("C-c r a" "Add a book"                          my/org-reading-add-book)
     ("C-c r u" "Update current page"                 my/org-reading-set-current-page)
-    ("C-c r d" "Delete a book"                       my/org-reading-delete-book)
-
-
-    (:section "Everyday")
-    ("C-x C-f" "Find/open file"                      find-file)
-    ("C-x C-s" "Save current buffer"                 save-buffer)
-    ("C-h v user-init-file" "Show init file path"    nil))
+    ("C-c r c" "Complete a book"                     my/org-reading-complete-book)
+    ("C-c r d" "Delete a book"                       my/org-reading-delete-book))
   "Rows for the startup cheatsheet buffer.")
 
+;; ============================================================================
+;; CHEATSHEET MODE
+;; ============================================================================
+
 ;; A tiny major mode for the cheatsheet buffer
-(define-derived-mode my/cheatsheet-mode special-mode "Cheatsheet"
-  "Mode for the startup key cheatsheet."
+(define-derived-mode my/cheatsheet-mode special-mode "Personal Workspace"
+  "Mode for the personal productivity workspace dashboard.
+Shows reading progress, key bindings, and quick access to important functions."
   (read-only-mode 1)
   (setq truncate-lines t)
   (setq-local buffer-face-mode-face 'fixed-pitch)
@@ -50,31 +59,35 @@
   (define-key my/cheatsheet-mode-map (kbd "g") #'my/cheatsheet-refresh)
   (define-key my/cheatsheet-mode-map (kbd "q") #'quit-window))
 
+;; ============================================================================
+;; CHEATSHEET RENDERING
+;; ============================================================================
+
 (defun my/cheatsheet--insert-line (key desc cmd)
-  "Insert one cheatsheet row. If CMD is non-nil, make it clickable."
-  (let ((col-key 18)    ;; width for Key column
-        (col-desc 42))  ;; width for Description column
-    (insert (format (format "%%-%ds %%-%ds " col-key col-desc) key desc))
-    (if (and cmd (symbolp cmd))
-        (insert-text-button
-         (symbol-name cmd)
-         'help-echo (format "Run %s" cmd)
-         'action (lambda (_btn) (call-interactively cmd)))
-      (insert "—"))
+  "Insert one cheatsheet row. CMD parameter is ignored.
+Creates a formatted row with key and description only."
+  (let ((col-key 18)    ;; Width for Key column
+        (col-desc 42))  ;; Width for Description column
+    (insert (format (format "%%-%ds %%s" col-key) key desc))
     (insert "\n")))
 
-;; Add reading info to the welcome page
-;; --- Reading dashboard on Welcome page (reusing reading-tracker.el) ----------
+;; ============================================================================
+;; READING DASHBOARD INTEGRATION
+;; ============================================================================
+
+;; Reading dashboard on Welcome page (reusing reading-tracker.el)
 
 (defun my/welcome--visit-marker (mk)
-  "Jump to book at marker MK in reading.org."
+  "Jump to book at marker MK in reading.org.
+Switches to the reading file and shows the specific book entry."
   (interactive)
   (switch-to-buffer (marker-buffer mk))
   (goto-char mk)
   (org-show-entry))
 
 (defun my/welcome--collect-reading-rows ()
-  "Return list of (TITLE LEFT PCT-STR PPD-STR) using reading-tracker helpers."
+  "Return list of (TITLE LEFT PCT-STR PPD-STR) using reading-tracker helpers.
+Collects reading progress data for display in the welcome dashboard."
   (let (rows)
     (dolist (it (my/org--collect-reading-headings))
       (let* ((mk    (cdr it))
@@ -91,7 +104,7 @@
                                  (ceiling (/ (float left) dleft)))))
               (when (> total 0)
                 (push (list
-                       ;; avoid breaking the table if title contains '|'
+                       ;; Avoid breaking the table if title contains '|'
                        (replace-regexp-in-string "|" "/" title)
                        left
                        (format "%.1f" pct)
@@ -100,66 +113,112 @@
     (nreverse rows)))
 
 (defun my/welcome--insert-reading-dashboard ()
-  "Insert an Org-style table dashboard and align it."
+  "Insert an Org-style table dashboard and align it.
+Creates a reading progress table showing title, pages left, progress %, and pages/day needed."
   (let ((rows (my/welcome--collect-reading-rows)))
-    (insert "\nReading dashboard\n=================\n")
-    (insert "| Title | Left | % | Pages/day |\n")
-    (insert "|-+-----+-----+-----------|\n")
+    (insert "\n📖 READING PROGRESS\n")
+    (insert "═══════════════════\n\n")
     (if (null rows)
-        (insert "| (no books yet — use C-c r a) | | | |\n")
-      (dolist (r rows)
-        (insert (format "| %s | %d | %s | %s |\n"
-                        (nth 0 r) (nth 1 r) (nth 2 r) (nth 3 r)))))
-    (save-excursion (org-table-align))))
+        (progn
+          (insert "No books in progress yet\n")
+          (insert "Use C-c r a to add your first book\n\n"))
+      (progn
+        (insert (format "%-30s %6s %8s %10s\n" "Title" "Left" "Progress" "Pages/day"))
+        (insert (make-string 30 ?-) " " (make-string 6 ?-) " " (make-string 8 ?-) " " (make-string 10 ?-) "\n")
+        (dolist (r rows)
+          (insert (format "%-30s %6d %7s%% %10s\n"
+                          (truncate-string-to-width (nth 0 r) 30 nil nil "…")
+                          (nth 1 r) 
+                          (nth 2 r) 
+                          (nth 3 r))))))))
 
-
-;; (second duplicate definition removed)
-
-
+;; ============================================================================
+;; MAIN CHEATSHEET FUNCTIONS
+;; ============================================================================
 
 (defun my/cheatsheet--render ()
-  "Render the cheatsheet content in the current buffer."
+  "Render the cheatsheet content in the current buffer.
+Creates the complete welcome page with reading dashboard and key bindings."
   (let ((inhibit-read-only t))
     (erase-buffer)
-    (insert "Welcome 👋  — Reading List and Quick Keys\n")
-    (insert "Press RET on a command name to run it • g to refresh • q to close\n")
+    (insert "📚 Personal Workspace\n")
+    (insert "═════════════════════\n\n") 
+    (insert "Productivity system based on PARA methodology + GTD principles\n")
+    (insert "Press 'g' to refresh • 'q' to close\n")
        
     (my/welcome--insert-reading-dashboard)
     (insert "\n")
     
-    (insert (format "%-18s %-42s %s\n" "Key" "What it does" "Command"))
-    (insert (make-string 18 ?-) " " (make-string 42 ?-) " " (make-string 10 ?-) "\n")
-    (dolist (row my/cheatsheet-keys)
-      (if (and (consp row) (keywordp (car row)) (eq (car row) :section))
-          (progn
-            (insert "\n" (cadr row) "\n")
-            (insert (make-string (length (cadr row)) ?=) "\n"))
-        (pcase-let ((`(,key ,desc ,cmd) row))
-          (my/cheatsheet--insert-line key desc cmd))))
+    ;; Split key bindings into two columns
+    (let ((org-section '())
+          (reading-section '())
+          (current-section nil))
+      
+      ;; Separate the sections
+      (dolist (row my/cheatsheet-keys)
+        (cond
+         ((and (consp row) (keywordp (car row)) (eq (car row) :section))
+          (setq current-section (cadr row)))
+         ((string-equal current-section "Org & Agenda")
+          (push row org-section))
+         ((string-equal current-section "Reading tracker")
+          (push row reading-section))))
+      
+      ;; Reverse to maintain original order
+      (setq org-section (nreverse org-section))
+      (setq reading-section (nreverse reading-section))
+      
+      ;; Insert two-column layout
+      (insert "Key Bindings\n")
+      (insert "════════════\n\n")
+      (insert (format "%-40s %s\n" "ORG & AGENDA" "READING TRACKER"))
+      (insert (format "%-40s %s\n" (make-string 12 ?-) (make-string 15 ?-)))
+      
+      ;; Print rows side by side
+      (let ((max-rows (max (length org-section) (length reading-section))))
+        (dotimes (i max-rows)
+          (let ((org-row (nth i org-section))
+                (reading-row (nth i reading-section)))
+            (insert (format "%-40s %s\n"
+                            (if org-row
+                                (format "%-15s %s" (nth 0 org-row) (nth 1 org-row))
+                              "")
+                            (if reading-row
+                                (format "%-15s %s" (nth 0 reading-row) (nth 1 reading-row))
+                              "")))))))
+    
     (goto-char (point-min))))
 
 (defun my/cheatsheet-show ()
+  "Display the welcome cheatsheet in a new buffer.
+Creates or switches to the welcome buffer and renders the content."
   (interactive)
-  (let ((buf (get-buffer-create "*Welcome – Keys*")))
+  (let ((buf (get-buffer-create "*Personal Workspace*")))
     (with-current-buffer buf
       (my/cheatsheet-mode)
       (my/cheatsheet--render))
-    (switch-to-buffer buf)))     ;; use the current window
-
+    (switch-to-buffer buf)))     ;; Use the current window
 
 (defun my/cheatsheet-refresh ()
-  "Re-render the cheatsheet buffer."
+  "Re-render the cheatsheet buffer.
+Updates the content with current reading progress and key bindings."
   (interactive)
   (when (derived-mode-p 'my/cheatsheet-mode)
     (my/cheatsheet--render)))
 
+;; ============================================================================
+;; STARTUP INTEGRATION
+;; ============================================================================
+
+;; Show welcome page on startup
 (add-hook 'emacs-startup-hook
           (lambda ()
             (my/cheatsheet-show)
-            (delete-other-windows)))  ;; ensure a single window
+            (delete-other-windows)))  ;; Ensure a single window
 
 ;; Global shortcut to open the welcome view from anywhere
+(global-set-key (kbd "C-c d") (lambda () (interactive) (dired org-directory)))
+(global-set-key (kbd "C-c e") (lambda () (interactive) (dired user-emacs-directory)))
 (global-set-key (kbd "C-c h") #'my/cheatsheet-show)
-
 
 (provide 'welcome)
