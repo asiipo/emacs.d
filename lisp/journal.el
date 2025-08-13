@@ -36,7 +36,16 @@
 Ensures the journal file exists with proper Org structure."
   (unless (file-exists-p my/org-journal-file)
     (with-temp-file my/org-journal-file
-      (insert "#+TITLE: Journal\n"))))
+      (insert "#+TITLE: Journal\n")))
+  ;; Add title to existing file if missing
+  (when (file-exists-p my/org-journal-file)
+    (with-temp-buffer
+      (insert-file-contents my/org-journal-file)
+      (goto-char (point-min))
+      (unless (looking-at "^#\\+TITLE:")
+        (goto-char (point-min))
+        (insert "#+TITLE: Journal\n")
+        (write-file my/org-journal-file)))))
 
 ;; ============================================================================
 ;; CAPTURE TEMPLATE INTEGRATION
