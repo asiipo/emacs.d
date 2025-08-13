@@ -1,44 +1,30 @@
 ;;; -*- lexical-binding: t; -*-
 
+
+;; Keep Customize out of init.el
+
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(when (file-exists-p custom-file)
+  (load custom-file t))  ;; load quietly if present
+
+
+
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-(require 'org-basic)
-(require 'reading-tracker)
-(require 'welcome)
 
+;; Backups: don’t make ~ files for VC-managed files (Git, etc.)
+(setq vc-make-backup-files nil)  ;; default, kept explicit for clarity
 
-;; Never make backups for version-controlled files (Git, etc.)
-(setq vc-make-backup-files nil)   ;; this is the default
-
-
-;; Load Org, then register the reading file in the agenda safely
+;; Load Org early so modules can rely on it
 (require 'org)
-(add-to-list 'org-agenda-files my/org-reading-file)
 
+(require 'org-basic)        ;; org dir, agenda, capture, editing niceties
+(require 'reading-tracker)  ;; reading file + dashboard helpers
+(require 'welcome)          ;; startup page (reuses reading-tracker)
 
-
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(custom-enabled-themes '(modus-operandi-tinted))
- '(package-selected-packages '(magit))
- '(scroll-bar-mode nil)) ; Hide GUI scrollbars
-
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(default ((t (:family "Menlo" :foundry "nil" :slant normal :weight regular :height 240 :width normal)))))
-
-
-
-
-
-
-
-
+;; Make sure the reading file is included in the agenda (idempotent)
+(when (boundp 'my/org-reading-file)
+  (setq org-agenda-files
+        (delete-dups (cons my/org-reading-file org-agenda-files))))
 
 
 ;;; End of init.el
