@@ -8,9 +8,7 @@ PARA methodology + GTD workflow with reading tracker.
 ├── inbox.org           # Capture everything here
 ├── projects/           # Active projects
 ├── areas/              # Ongoing responsibilities
-│   └── reading.org     # Reading progress
 ├── resources/          # Reference materials  
-│   └── books.org       # Book notes
 └── archive/            # Completed items
 ```
 
