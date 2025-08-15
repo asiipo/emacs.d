@@ -1,7 +1,17 @@
 ;;; magit-config.el --- Magit setup -*- lexical-binding: t; -*-
 
-;; Basic keybinding
-(global-set-key (kbd "C-x g") #'magit-status)
+(defun my/magit-org-status ()
+  "Open magit-status for the org directory specifically."
+  (interactive)
+  (if (and org-directory (file-directory-p org-directory))
+      (let ((default-directory org-directory))
+        (if (file-exists-p ".git")
+            (magit-status)
+          (message "Org directory is not a git repository")))
+    (message "Org directory not found")))
+
+;; Always open magit for org directory, not current directory
+(global-set-key (kbd "C-x g") #'my/magit-org-status)
 
 ;; Use same window behavior for popups if you prefer minimal window churn
 (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
