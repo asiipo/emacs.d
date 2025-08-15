@@ -125,8 +125,8 @@ Creates a structured entry for detailed note-taking and review."
 Uses planning time from current heading to compute remaining days."
   (let ((ts (my/org--planning-time-at-point)))
     (when ts
-      (max 1 (ceiling (time-to-number-of-days
-                       (time-subtract ts (current-time))))))))
+      (max 1 (1+ (time-to-number-of-days  ;; Use 1+ for clearer intent
+                  (time-subtract ts (current-time))))))))
 
 ;; Debug helper at a book heading
 (defun my/org-reading-dump ()

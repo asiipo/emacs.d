@@ -43,8 +43,9 @@
     ("C-c r d" "Delete a book"                       my/org-reading-delete-book)
 
     (:section "Git Sync")
-    ("C-c g s" "Sync org to remote now"              my/org-sync-now)
-    ("C-c g t" "Toggle auto-sync"                    my/org-toggle-auto-sync)
+    ("C-c g"   "Git status (org)"                    my/magit-org-status)
+    ("C-c G s" "Sync org to remote now"              my/org-sync-now)
+    ("C-c G t" "Toggle auto-sync"                    my/org-toggle-auto-sync)
     ("C-x g"   "Magit status"                        magit-status))
   "Rows for the startup cheatsheet buffer.")
 
@@ -148,8 +149,10 @@ Creates the complete welcome page with reading dashboard and key bindings."
     (erase-buffer)
     (insert "📚 Personal Workspace\n")
     (insert "═════════════════════\n\n") 
-    (insert "Productivity system based on PARA methodology + GTD principles\n")
-    (insert "Press 'g' to refresh • 'q' to close\n")
+    (insert (propertize "Productivity system based on PARA methodology + GTD principles\n" 
+                        'face '(:foreground "dim gray")))
+    (insert (propertize "Press 'g' to refresh • 'q' to close\n" 
+                        'face '(:foreground "dim gray")))
        
     (my/welcome--insert-reading-dashboard)
     (insert "\n")
@@ -233,7 +236,7 @@ Updates the content with current reading progress and key bindings."
             (my/cheatsheet-show)
             (delete-other-windows)))  ;; Ensure a single window
 
-;; Global shortcut to open the welcome view from anywhere
+;; Global shortcuts for common directories
 (global-set-key (kbd "C-c d") (lambda () (interactive) (dired org-directory)))
 (global-set-key (kbd "C-c e") (lambda () (interactive) (dired user-emacs-directory)))
 (global-set-key (kbd "C-c h") #'my/cheatsheet-show)

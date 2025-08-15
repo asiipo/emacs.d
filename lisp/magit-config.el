@@ -26,11 +26,25 @@
 (defvar my/org-last-sync-time 0
   "Timestamp of last sync to prevent too frequent commits.")
 
-(defvar my/org-sync-delay 30
+(defvar my/org-sync-delay 60  ;; Increase to 60 seconds for less noise
   "Minimum seconds between auto-sync operations.")
 
+(defvar my/org-sync-in-progress nil
+  "Flag to indicate if sync is currently in progress.")
+
+(defun my/org-sync-set-indicator (active)
+  "Set or clear the sync indicator in mode line."
+  (setq my/org-sync-in-progress active)
+  (force-mode-line-update t))
+
+(defun my/org-sync-message (msg &optional warning)
+  "Display sync message with optional warning styling."
+  (if warning
+      (message (propertize msg 'face '(:foreground "orange" :weight bold)))
+    (message (propertize msg 'face '(:foreground "forest green" :weight bold)))))
+
 (defun my/org-git-auto-sync ()
-  "Automatically commit and push changes in org directory.
+  "Automatically sync org directory: pull first, then commit and push changes.
 Only runs if enough time has passed since last sync."
   (when (and my/org-auto-sync-enabled
              org-directory
@@ -40,21 +54,46 @@ Only runs if enough time has passed since last sync."
       (when (file-exists-p ".git")
         (condition-case err
             (progn
-              ;; Add all changes
+              ;; Set sync indicator and warning
+              (my/org-sync-set-indicator t)
+              (my/org-sync-message "⚠️  SYNC IN PROGRESS - Don't quit Emacs!" t)
+              
+              ;; Step 1: Pull latest changes first
+              (shell-command "git pull origin main > /dev/null 2>&1")
+              
+              ;; Step 2: Add all local changes
               (shell-command "git add -A")
-              ;; Check if there are changes to commit
+              
+              ;; Step 3: Check if there are changes to commit
               (let ((status (shell-command-to-string "git status --porcelain")))
-                (when (not (string-empty-p (string-trim status)))
-                  ;; Commit with timestamp
-                  (let ((commit-msg (format "Auto-sync: %s" 
-                                          (format-time-string "%Y-%m-%d %H:%M:%S"))))
-                    (shell-command (format "git commit -m \"%s\"" commit-msg))
-                    ;; Push to remote (suppress output to avoid noise)
-                    (shell-command "git push origin main > /dev/null 2>&1")
-                    (message "Org directory synced to remote")
-                    (setq my/org-last-sync-time (float-time))))))
+                (if (not (string-empty-p (string-trim status)))
+                    (progn
+                      ;; Step 4: Commit with timestamp
+                      (let ((commit-msg (format "Auto-sync: %s" 
+                                                (format-time-string "%Y-%m-%d %H:%M:%S"))))
+                        (shell-command (format "git commit -m \"%s\"" commit-msg))
+                        ;; Step 5: Push to remote
+                        (shell-command "git push origin main > /dev/null 2>&1")
+                        (my/org-sync-message "✅ Org directory synced (pull + commit + push)")
+                        (setq my/org-last-sync-time (float-time))))
+                  ;; No local changes, but we still pulled
+                  (progn
+                    (my/org-sync-message "✅ Org directory synced (pull only)")
+                    (setq my/org-last-sync-time (float-time)))))
+              
+              ;; Clear sync indicator
+              (my/org-sync-set-indicator nil))
           (error
-           (message "Org auto-sync failed: %s" (error-message-string err))))))))
+           ;; Clear indicator on error too
+           (my/org-sync-set-indicator nil)
+           (my/org-sync-message (format "❌ Org auto-sync failed: %s" (error-message-string err)) t)))))))
+
+;; Manual sync function - now does full bidirectional sync
+(defun my/org-sync-now ()
+  "Manually sync org directory: pull latest, commit, and push changes."
+  (interactive)
+  (setq my/org-last-sync-time 0) ; Reset timer to force sync
+  (my/org-git-auto-sync))
 
 (defun my/org-setup-auto-sync ()
   "Set up automatic sync hooks for org files."
@@ -68,13 +107,6 @@ Only runs if enough time has passed since last sync."
                   ;; Run sync in background after a short delay
                   (run-with-timer 2 nil #'my/org-git-auto-sync))))))
 
-;; Manual sync function
-(defun my/org-sync-now ()
-  "Manually sync org directory to remote repository."
-  (interactive)
-  (setq my/org-last-sync-time 0) ; Reset timer to force sync
-  (my/org-git-auto-sync))
-
 ;; Toggle auto-sync
 (defun my/org-toggle-auto-sync ()
   "Toggle automatic Git sync for org directory."
@@ -84,12 +116,18 @@ Only runs if enough time has passed since last sync."
            (if my/org-auto-sync-enabled "ENABLED" "DISABLED")))
 
 ;; Keybindings
-(global-set-key (kbd "C-c g s") #'my/org-sync-now)
-(global-set-key (kbd "C-c g t") #'my/org-toggle-auto-sync)
+(global-set-key (kbd "C-c g") #'my/magit-org-status)      ;; Git status for org directory
+(global-set-key (kbd "C-c G s") #'my/org-sync-now)        ;; Manual sync (uppercase G)
+(global-set-key (kbd "C-c G t") #'my/org-toggle-auto-sync) ;; Toggle auto-sync
 
 ;; Initialize auto-sync when org-directory is available
 (with-eval-after-load 'org
   (my/org-setup-auto-sync))
+
+;; Add sync indicator to mode line
+(add-to-list 'mode-line-misc-info
+             '(:eval (when my/org-sync-in-progress
+                       (propertize " [SYNC]" 'face '(:foreground "orange" :weight bold)))))
 
 ;; Pull org files on startup (useful for new computers or syncing changes)
 (add-hook 'emacs-startup-hook
@@ -102,10 +140,13 @@ Only runs if enough time has passed since last sync."
                     (when (file-exists-p ".git")
                       (condition-case err
                           (progn
-                            (message "Syncing org files from remote...")
+                            (my/org-sync-set-indicator t)
+                            (my/org-sync-message "⚠️  STARTUP SYNC - Don't quit Emacs!" t)
                             (shell-command "git pull origin main > /dev/null 2>&1")
-                            (message "Org files synced from remote"))
+                            (my/org-sync-message "✅ Org files synced from remote")
+                            (my/org-sync-set-indicator nil))
                         (error
-                         (message "Org startup sync failed: %s" (error-message-string err)))))))))))
+                         (my/org-sync-set-indicator nil)
+                         (my/org-sync-message (format "❌ Org startup sync failed: %s" (error-message-string err)) t))))))))))
 
 (provide 'magit-config)
