@@ -40,7 +40,12 @@
     ("C-c r a" "Add a book"                          my/org-reading-add-book)
     ("C-c r u" "Update current page"                 my/org-reading-set-current-page)
     ("C-c r c" "Complete a book"                     my/org-reading-complete-book)
-    ("C-c r d" "Delete a book"                       my/org-reading-delete-book))
+    ("C-c r d" "Delete a book"                       my/org-reading-delete-book)
+
+    (:section "Git Sync")
+    ("C-c g s" "Sync org to remote now"              my/org-sync-now)
+    ("C-c g t" "Toggle auto-sync"                    my/org-toggle-auto-sync)
+    ("C-x g"   "Magit status"                        magit-status))
   "Rows for the startup cheatsheet buffer.")
 
 ;; ============================================================================
@@ -149,9 +154,10 @@ Creates the complete welcome page with reading dashboard and key bindings."
     (my/welcome--insert-reading-dashboard)
     (insert "\n")
     
-    ;; Split key bindings into two columns
+    ;; Split key bindings into sections
     (let ((org-section '())
           (reading-section '())
+          (git-section '())
           (current-section nil))
       
       ;; Separate the sections
@@ -162,19 +168,22 @@ Creates the complete welcome page with reading dashboard and key bindings."
          ((string-equal current-section "Org & Agenda")
           (push row org-section))
          ((string-equal current-section "Reading tracker")
-          (push row reading-section))))
+          (push row reading-section))
+         ((string-equal current-section "Git Sync")
+          (push row git-section))))
       
       ;; Reverse to maintain original order
       (setq org-section (nreverse org-section))
       (setq reading-section (nreverse reading-section))
+      (setq git-section (nreverse git-section))
       
-      ;; Insert two-column layout
+      ;; Insert two-column layout with Git section below
       (insert "Key Bindings\n")
       (insert "════════════\n\n")
       (insert (format "%-40s %s\n" "ORG & AGENDA" "READING TRACKER"))
       (insert (format "%-40s %s\n" (make-string 12 ?-) (make-string 15 ?-)))
       
-      ;; Print rows side by side
+      ;; Print org and reading sections side by side
       (let ((max-rows (max (length org-section) (length reading-section))))
         (dotimes (i max-rows)
           (let ((org-row (nth i org-section))
@@ -185,7 +194,15 @@ Creates the complete welcome page with reading dashboard and key bindings."
                               "")
                             (if reading-row
                                 (format "%-15s %s" (nth 0 reading-row) (nth 1 reading-row))
-                              "")))))))
+                              ""))))))
+      
+      ;; Add Git Sync section below
+      (when git-section
+        (insert "\n")
+        (insert (format "%s\n" "GIT SYNC"))
+        (insert (format "%s\n" (make-string 8 ?-)))
+        (dolist (git-row git-section)
+          (insert (format "%-15s %s\n" (nth 0 git-row) (nth 1 git-row))))))
     
     (goto-char (point-min))))
 

@@ -1,0 +1,39 @@
+* Overview
+
+My personal Emacs configuration.
+
+Built to support note-taking, GTD workflow, reading tracking, utilizing automatic Git sync.
+
+* Structure
+
+#+BEGIN_EXAMPLE
+~/org/
+├── inbox.org           # Capture everything here
+├── projects/           # Active projects
+├── areas/              # Ongoing responsibilities
+├── resources/          # Reference materials  
+└── archive/            # Completed items
+#+END_EXAMPLE
+
+* Auto-Sync
+
+Every save to =~/org/= will automatically commit and push to Git remote, keeping all computers synchronized. Use =C-c g t= to toggle or =C-c g s= to sync manually.
+
+* Key Bindings
+
+** Org & Agenda
+| Key       | Action            |
+|-----------+-------------------|
+| =C-c a=   | Agenda            |
+| =C-c c=   | Capture           |
+| =C-c i=   | Inbox             |
+| =C-c C-w= | Refile            |
+| =C-c h=   | Welcome screen    |
+| =C-c C-x a= | Archive file    |
+
+** Git Sync
+| Key       | Action              |
+|-----------+---------------------|
+| =C-c g s= | Sync to Git now     |
+| =C-c g t= | Toggle auto-sync    |
+| =C-x g=   | Magit status        |
