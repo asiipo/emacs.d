@@ -43,19 +43,16 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
     (delete-dups (append (when (file-exists-p inbox) (list inbox)) 
                          projects areas))))
 
-;; Set agenda files to use the dynamic function
-(setq org-agenda-files-function #'my/org-agenda-files)
+;; Set agenda files to use the dynamic function AND initialize the variable
+(setq org-agenda-files-function #'my/org-agenda-files
+      org-agenda-files (my/org-agenda-files))  ;; Initialize with current files
 
-;; Also set initial agenda files explicitly
-(setq org-agenda-files (my/org-agenda-files))
-
-;; Auto-refresh agenda after capture
+;; Auto-refresh agenda after capture (simplified - function approach auto-updates)
 (with-eval-after-load 'org-capture
   (add-hook 'org-capture-after-finalize-hook 
             (lambda () 
-              ;; Update agenda files list
-              (setq org-agenda-files (my/org-agenda-files))
-              ;; Refresh agenda view if open
+              ;; Function-based approach automatically includes new files
+              ;; Just refresh agenda view if open
               (when (get-buffer "*Org Agenda*")
                 (with-current-buffer "*Org Agenda*"
                   (org-agenda-redo))))))
@@ -124,9 +121,10 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
   (find-file (expand-file-name "inbox.org" org-directory)))
 
 (defun my/refresh-agenda ()
-  "Refresh the agenda view to include any new files."
+  "Refresh the agenda view to include any new files.
+Updates both the function and variable approaches for maximum compatibility."
   (interactive)
-  ;; Update agenda files list
+  ;; Update the variable to ensure compatibility with all agenda commands
   (setq org-agenda-files (my/org-agenda-files))
   ;; Refresh agenda view if open
   (when (get-buffer "*Org Agenda*")

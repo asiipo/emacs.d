@@ -44,8 +44,9 @@
 
 (defun my/org-git-auto-sync ()
   "Automatically sync org directory: pull first, then commit and push changes.
-Only runs if enough time has passed since last sync."
+Only runs if enough time has passed since last sync and no other sync is running."
   (when (and my/org-auto-sync-enabled
+             (not my/org-sync-in-progress)  ;; Prevent race conditions
              org-directory
              (file-directory-p org-directory)
              (> (float-time) (+ my/org-last-sync-time my/org-sync-delay)))
@@ -57,8 +58,10 @@ Only runs if enough time has passed since last sync."
               (my/org-sync-set-indicator t)
               (my/org-sync-message "⚠️  SYNC IN PROGRESS - Don't quit Emacs!" t)
               
-              ;; Step 1: Pull latest changes first
-              (shell-command "git pull origin main > /dev/null 2>&1")
+              ;; Step 1: Pull latest changes first (with error checking)
+              (let ((pull-result (shell-command "git pull origin main > /dev/null 2>&1")))
+                (unless (zerop pull-result)
+                  (my/org-sync-message "⚠️  Git pull had issues, continuing with local changes" t)))
               
               ;; Step 2: Add all local changes
               (shell-command "git add -A")
@@ -67,13 +70,16 @@ Only runs if enough time has passed since last sync."
               (let ((status (shell-command-to-string "git status --porcelain")))
                 (if (not (string-empty-p (string-trim status)))
                     (progn
-                      ;; Step 4: Commit with timestamp
+                      ;; Step 4: Commit with timestamp (secure from injection attacks)
                       (let ((commit-msg (format "Auto-sync: %s" 
                                                 (format-time-string "%Y-%m-%d %H:%M:%S"))))
-                        (shell-command (format "git commit -m \"%s\"" commit-msg))
-                        ;; Step 5: Push to remote
-                        (shell-command "git push origin main > /dev/null 2>&1")
-                        (my/org-sync-message "✅ Org directory synced (pull + commit + push)")
+                        ;; Use shell-quote-argument to prevent command injection
+                        (shell-command (format "git commit -m %s" (shell-quote-argument commit-msg)))
+                        ;; Step 5: Push to remote (with error checking)
+                        (let ((push-result (shell-command "git push origin main > /dev/null 2>&1")))
+                          (if (zerop push-result)
+                              (my/org-sync-message "✅ Org directory synced (pull + commit + push)")
+                            (my/org-sync-message "⚠️  Push failed, changes saved locally" t)))
                         (setq my/org-last-sync-time (float-time))))
                   ;; No local changes, but we still pulled
                   (progn
@@ -94,6 +100,10 @@ Only runs if enough time has passed since last sync."
   (setq my/org-last-sync-time 0) ; Reset timer to force sync
   (my/org-git-auto-sync))
 
+;; Variable to track active sync timer (prevents memory leaks)
+(defvar my/org-sync-timer nil
+  "Timer object for pending sync operations.")
+
 (defun my/org-setup-auto-sync ()
   "Set up automatic sync hooks for org files."
   (when (and org-directory (file-directory-p org-directory))
@@ -103,8 +113,15 @@ Only runs if enough time has passed since last sync."
                 (when (and buffer-file-name
                            (string-prefix-p (expand-file-name org-directory) 
                                           (expand-file-name buffer-file-name)))
+                  ;; Cancel existing timer to prevent accumulation
+                  (when my/org-sync-timer
+                    (cancel-timer my/org-sync-timer))
                   ;; Run sync in background after a short delay
-                  (run-with-timer 2 nil #'my/org-git-auto-sync))))))
+                  (setq my/org-sync-timer
+                        (run-with-timer 2 nil 
+                                       (lambda ()
+                                         (setq my/org-sync-timer nil)
+                                         (my/org-git-auto-sync)))))))))
 
 ;; Toggle auto-sync
 (defun my/org-toggle-auto-sync ()

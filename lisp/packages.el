@@ -23,12 +23,22 @@
 
 ;; Ensure Magit is installed for Git integration
 (unless (package-installed-p 'magit)
-  (ignore-errors
-    (package-install 'magit)))
+  (condition-case err
+      (progn
+        (message "Installing magit...")
+        (package-install 'magit)
+        (message "Magit installed successfully"))
+    (error 
+     (message "Warning: Failed to install magit: %s" (error-message-string err)))))
 
 ;; Ensure doom-themes is installed (since you're using doom-dracula)
 (unless (package-installed-p 'doom-themes)
-  (ignore-errors
-    (package-install 'doom-themes)))
+  (condition-case err
+      (progn
+        (message "Installing doom-themes...")
+        (package-install 'doom-themes)
+        (message "Doom-themes installed successfully"))
+    (error 
+     (message "Warning: Failed to install doom-themes: %s" (error-message-string err)))))
 
 (provide 'packages) 
