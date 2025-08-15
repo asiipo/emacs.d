@@ -4,7 +4,30 @@ This repository contains a personal Emacs configuration designed for academic an
 
 The system provides comprehensive support for note-taking, task management, project organization, reading tracking, and bilingual writing with automatic spell checking. All organizational data is maintained in Org mode with automatic Git synchronization for seamless multi-device workflows.
 
-* Structure
+* Quick Setup
+
+** System Dependencies
+
+Before using this configuration, install the required system dependencies:
+
+*** macOS (using Homebrew)
+#+BEGIN_SRC bash
+# Required for spell-checking with jinx
+brew install enchant
+
+# Required for native module compilation
+brew install pkg-config
+#+END_SRC
+
+** First Run
+
+1. Clone this repository to =~/.emacs.d/=
+2. Install system dependencies (see above)
+3. Start Emacs - packages will be automatically installed on first run
+
+** Directory Structure
+
+Create the following directory structure for optimal workflow:
 
 #+BEGIN_EXAMPLE
 ~/org/
@@ -14,8 +37,3 @@ The system provides comprehensive support for note-taking, task management, proj
 ├── resources/          # Reference materials and knowledge base
 └── archive/            # Completed items and inactive projects
 #+END_EXAMPLE
-
-* Auto-Sync
-
-The configuration includes an automated Git synchronization system that monitors the =~/org/= directory for changes. Upon detecting modifications to organizational files, the system automatically commits changes with descriptive messages and synchronizes with the configured remote repository.
-

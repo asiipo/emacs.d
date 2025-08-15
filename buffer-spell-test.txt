@@ -1,7 +1,0 @@
-This file has several mispellings for testing.
-
-Here's a wrnog word, and another misteak.
-Some Finnish: Tämä on teste jossa on virhe.
-
-This buffer correction test has erorrs in multiple languages!
-Suomeksi: Kirjoitan väärin sanoja kuten vhire ja teste.
