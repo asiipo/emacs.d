@@ -70,7 +70,7 @@
 ;; Load jinx if available
 (when (package-installed-p 'jinx)
   ;; Configure languages for English and Finnish
-  (setq jinx-languages "en_US fi_FI")
+  (setq jinx-languages "en_US fi")
   
   ;; Enable jinx globally for all text modes
   (add-hook 'emacs-startup-hook #'global-jinx-mode)
@@ -116,21 +116,15 @@
   "Switch jinx to Finnish only."
   (interactive)
   (when (package-installed-p 'jinx)
-    (setq jinx-languages "fi_FI")
-    (when (bound-and-true-p jinx-mode)
-      (jinx-mode -1)
-      (jinx-mode 1))
-    (message "Spell checking: Finnish")))
+    (setq jinx-languages "fi")
+    (message "Switched to Finnish spell checking")))
 
 (defun my/jinx-switch-to-bilingual ()
   "Switch jinx to both English and Finnish."
   (interactive)
   (when (package-installed-p 'jinx)
-    (setq jinx-languages "en_US fi_FI")
-    (when (bound-and-true-p jinx-mode)
-      (jinx-mode -1)
-      (jinx-mode 1))
-    (message "Spell checking: English + Finnish")))
+    (setq jinx-languages "en_US fi")
+    (message "Switched to bilingual spell checking (English + Finnish)")))
 
 (defun my/jinx-correct-buffer ()
   "Correct all misspellings in the entire buffer.

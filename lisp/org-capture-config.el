@@ -65,7 +65,7 @@ If the file exists, append -2, -3, etc. until we find an unused name."
         ;; Note: tagged note to inbox
         ("n" "Note" entry 
          (file ,org-default-notes-file)
-         "* %? :%^{tags|work|home|research|admin|deep|quick|:}:\nCREATED: %U\n%i\n")
+         "* %^{Note title} :%^{tags|work|home|research|admin|deep|quick|:}:\nCREATED: %U\n\n%?\n%i\n")
 
         ;; Scheduled task: task with specific date/time
         ("s" "Scheduled Task" entry
