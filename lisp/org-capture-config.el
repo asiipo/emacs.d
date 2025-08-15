@@ -92,8 +92,7 @@ If the file exists, append -2, -3, etc. until we find an unused name."
                    (make-directory dir t)
                    (my/capture--set-title title)
                    file)))
-         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Project\n:PROPERTIES:\n:AREA: %^{Area|Research|Teaching|Admin|Personal}\n:STATUS: Active\n:CREATED: %U\n:END:\n\n* Overview\n%?\n\n* Goals\n- [ ] \n\n* Next actions\n- TODO \n\n* Waiting for\n\n* Notes\n"
-         :empty-lines 1)
+         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Project\n:PROPERTIES:\n:AREA: %^{Area|Research|Teaching|Admin|Personal}\n:STATUS: Active\n:CREATED: %U\n:END:\n\n* Overview\n%?\n\n* Goals\n- [ ] \n\n* Next actions\n- TODO \n\n* Waiting for\n\n* Notes\n")
         
         ;; Area: create new area file with template
         ("a" "New Area (file)" plain
@@ -105,8 +104,7 @@ If the file exists, append -2, -3, etc. until we find an unused name."
                    (make-directory dir t)
                    (my/capture--set-title title)
                    file)))
-         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Area\n:PROPERTIES:\n:PURPOSE: %^{Purpose of this area}\n:REVIEW: weekly\n:CREATED: %U\n:END:\n\n* Purpose\n%?\n\n* Standards\n- What \"good\" looks like for this area\n- Key metrics or indicators of success\n\n* Current focus\n- TODO Review and maintain standards\n- TODO Plan next steps\n\n* Ongoing maintenance\n- TODO Regular review of this area\n\n* Resources\n- Links, documents, or tools related to this area\n\n* Notes\n"
-         :empty-lines 1)
+         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Area\n:PROPERTIES:\n:PURPOSE: %^{Purpose of this area}\n:REVIEW: weekly\n:CREATED: %U\n:END:\n\n* Purpose\n%?\n\n* Standards\n- What \"good\" looks like for this area\n- Key metrics or indicators of success\n\n* Current focus\n- TODO Review and maintain standards\n- TODO Plan next steps\n\n* Ongoing maintenance\n- TODO Regular review of this area\n\n* Resources\n- Links, documents, or tools related to this area\n\n* Notes\n")
         
         ;; Resource: create new resource file with template
         ("r" "Resource (file)" plain
@@ -118,8 +116,7 @@ If the file exists, append -2, -3, etc. until we find an unused name."
                    (make-directory dir t)
                    (my/capture--set-title topic)
                    file)))
-         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Resource\n:PROPERTIES:\n:SOURCE: %^{Link or source}\n:TYPE: %^{Type|Article|Book|Tool|Documentation|Course}\n:CREATED: %U\n:END:\n\n* Summary\n%?\n\n* Key Points\n- \n\n* Action Items\n- TODO Review and extract insights\n\n* Notes\n"
-         :empty-lines 1)
+         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Resource\n:PROPERTIES:\n:SOURCE: %^{Link or source}\n:TYPE: %^{Type|Article|Book|Tool|Documentation|Course}\n:CREATED: %U\n:END:\n\n* Summary\n%?\n\n* Key Points\n- \n\n* Action Items\n- TODO Review and extract insights\n\n* Notes\n")
         ))
 
 ;; ============================================================================

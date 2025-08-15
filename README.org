@@ -2,7 +2,7 @@
 
 My personal Emacs configuration.
 
-Built to support note-taking, GTD workflow, reading tracking, utilizing automatic Git sync.
+Built to support note-taking, task scheduling, and reading tracking. Utilizes automatic Git sync.
 
 * Structure
 

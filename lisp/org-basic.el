@@ -134,23 +134,6 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
       (org-agenda-redo)
       (message "Agenda refreshed!"))))
 
-(defun my/debug-agenda-files ()
-  "Debug function to show which files are being scanned by agenda."
-  (interactive)
-  (let ((files (my/org-agenda-files)))
-    (message "Agenda scanning %d files: %s" 
-             (length files) 
-             (mapconcat #'file-name-nondirectory files ", "))))
-
-(defun my/force-refresh-agenda-files ()
-  "Force refresh of agenda files and clear any caches."
-  (interactive)
-  (setq org-agenda-files (my/org-agenda-files))
-  (when (get-buffer "*Org Agenda*")
-    (with-current-buffer "*Org Agenda*"
-      (org-agenda-redo)))
-  (message "Agenda files forcefully refreshed!"))
-
 ;; ============================================================================
 ;; GLOBAL KEYBINDINGS
 ;; ============================================================================
@@ -162,76 +145,45 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
 (global-set-key (kbd "C-c C-w") #'org-refile)  ;; Refile items from inbox
 
 ;; ============================================================================
-;; FILE ARCHIVING SYSTEM
+;; SIMPLIFIED FILE ARCHIVING SYSTEM
 ;; ============================================================================
 
-;; Archive whole files into appropriate archive subfolders
-(defun my/org--archive-dest-for-file (file)
-  "Return destination path for FILE under archive/ hierarchy.
-Routes files to archive/projects/, archive/areas/, or archive/resources/
-based on their source location. Adds timestamp suffix to avoid conflicts."
-  (let* ((file (expand-file-name file))
-         (base (file-name-as-directory (expand-file-name "archive" org-directory)))
-         (projects (file-name-as-directory (expand-file-name "projects" org-directory)))
-         (areas    (file-name-as-directory (expand-file-name "areas" org-directory)))
-         (resources (file-name-as-directory (expand-file-name "resources" org-directory)))
-         (subdir (cond
-                  ((string-prefix-p projects file) "projects")
-                  ((string-prefix-p areas file)    "areas")
-                  ((string-prefix-p resources file) "resources")
-                  (t "")))
-         (dest-dir (if (string-empty-p subdir)
-                       base
-                     (file-name-as-directory (expand-file-name subdir base))))
-         (dest (expand-file-name (file-name-nondirectory file) dest-dir)))
-    (make-directory dest-dir t)
-    ;; Avoid overwriting: add -YYYYMMDD-HHMMSS if file exists
-    (while (file-exists-p dest)
-      (setq dest (expand-file-name
-                  (format "%s-%s%s"
-                          (file-name-sans-extension (file-name-nondirectory file))
-                          (format-time-string "%Y%m%d-%H%M%S")
-                          (file-name-extension file t))
-                  dest-dir)))
-    dest))
-
 (defun my/org-archive-file ()
-  "Move the current Org file into the appropriate archive subfolder.
-Based on the file's location in the PARA structure."
+  "Move the current Org file into the appropriate archive subfolder."
   (interactive)
   (unless (derived-mode-p 'org-mode) 
     (user-error "Not in an Org buffer"))
   (let* ((src (or buffer-file-name (user-error "Buffer not visiting a file")))
-         (dest (my/org--archive-dest-for-file src)))
+         (file-name (file-name-nondirectory src))
+         ;; Determine archive subdirectory based on source location
+         (subdir (cond
+                  ((string-match-p "/projects/" src) "projects")
+                  ((string-match-p "/areas/" src) "areas")  
+                  ((string-match-p "/resources/" src) "resources")
+                  (t "")))
+         (archive-dir (if (string-empty-p subdir)
+                         (expand-file-name "archive" org-directory)
+                       (expand-file-name (concat "archive/" subdir) org-directory)))
+         (dest (expand-file-name file-name archive-dir)))
+    
+    ;; Create archive directory if needed
+    (make-directory archive-dir t)
+    
+    ;; Add timestamp if file exists to avoid conflicts
+    (when (file-exists-p dest)
+      (setq dest (expand-file-name
+                  (format "%s-%s%s"
+                          (file-name-sans-extension file-name)
+                          (format-time-string "%Y%m%d-%H%M%S")
+                          (file-name-extension file-name t))
+                  archive-dir)))
+    
+    ;; Save and move file
     (save-buffer)
-    (let ((buf (current-buffer)))
-      (kill-buffer buf))
+    (kill-buffer (current-buffer))
     (rename-file src dest t)
     (find-file dest)
-    (message "Archived file to: %s" dest)))
-
-(defun my/org-agenda-archive-file ()
-  "Move the source Org file of the current agenda item into archive.
-Handles multiple buffers visiting the same file safely."
-  (interactive)
-  (unless (derived-mode-p 'org-agenda-mode) 
-    (user-error "Not in an Org agenda"))
-  (let* ((m (or (org-get-at-bol 'org-hd-marker) (org-get-at-bol 'org-marker)))
-         (src-buf (and m (marker-buffer m)))
-         (src-file (and src-buf (buffer-file-name src-buf))))
-    (unless src-file 
-      (user-error "No source file for current agenda item"))
-    (let* ((dest (my/org--archive-dest-for-file src-file))
-           (live-bufs (cl-remove-if-not (lambda (b)
-                                          (let ((bf (buffer-local-value 'buffer-file-name b)))
-                                            (and bf (file-equal-p bf src-file))))
-                                        (buffer-list))))
-      (dolist (b live-bufs) 
-        (with-current-buffer b (save-buffer)) 
-        (kill-buffer b))
-      (rename-file src-file dest t)
-      (message "Archived file to: %s" dest)
-      (org-agenda-redo))))
+    (message "Archived to: %s" dest)))
 
 ;; Archive keybindings - simplified to one key
 (with-eval-after-load 'org
@@ -266,32 +218,11 @@ Handles multiple buffers visiting the same file safely."
 ;; REFILE CONFIGURATION
 ;; ============================================================================
 
-;; Configure refiling to move items from inbox to appropriate PARA locations
-;; Based on Org Mode Guide section 9.2
-
-(defun my/org--collect-org-files-recursively (dir)
-  "Collect all .org files recursively from directory DIR."
-  (when (file-directory-p dir)
-    (directory-files-recursively dir "\\.org\\'")))
-
-(defun my/org--refile-files ()
-  "Return list of all .org files in projects, areas, and resources directories."
-  (let ((projects (when (file-directory-p (expand-file-name "projects" org-directory))
-                    (my/org--collect-org-files-recursively (expand-file-name "projects" org-directory))))
-        (areas (when (file-directory-p (expand-file-name "areas" org-directory))
-                 (my/org--collect-org-files-recursively (expand-file-name "areas" org-directory))))
-        (resources (when (file-directory-p (expand-file-name "resources" org-directory))
-                     (my/org--collect-org-files-recursively (expand-file-name "resources" org-directory)))))
-    (append projects areas resources)))
-
-;; Refile targets: current file + top of files in Projects/Areas/Resources
-;; Also allow refiling directly to "Next actions" headings
+;; Simple refile configuration using agenda files
 (setq org-refile-use-outline-path 'file
       org-outline-path-complete-in-steps nil
       org-refile-allow-creating-parent-nodes 'confirm
-      org-refile-targets
-      `((nil :maxlevel . 3)  ;; Current buffer
-        ,@(mapcar (lambda (f) (cons f '(:level . 1))) (my/org--refile-files))
-        ,@(mapcar (lambda (f) (cons f '(:regexp . "^\\*+ Next actions\\b"))) (my/org--refile-files))))
+      org-refile-targets '((org-agenda-files :maxlevel . 3)
+                          (nil :maxlevel . 9)))
 
 (provide 'org-basic)

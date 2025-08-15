@@ -5,16 +5,16 @@
 ;; CUSTOMIZATION AND PACKAGES
 ;; ============================================================================
 
-;; Keep Customize out of init.el - all customizations go to custom.el
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-(when (file-exists-p custom-file)
-  (load custom-file t))  ;; load quietly if present
-
 ;; Add our lisp directory to load path
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 
-;; Initialize package system and install required packages
+;; Initialize package system and install required packages FIRST
 (require 'packages)
+
+;; THEN load custom.el after packages are available
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(when (file-exists-p custom-file)
+  (load custom-file t))  ;; load quietly if present
 
 ;; ============================================================================
 ;; ORG MODE SETUP

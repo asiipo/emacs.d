@@ -22,9 +22,13 @@
 ;; ============================================================================
 
 ;; Ensure Magit is installed for Git integration
-;; Respects Customize settings if already configured
 (unless (package-installed-p 'magit)
   (ignore-errors
     (package-install 'magit)))
+
+;; Ensure doom-themes is installed (since you're using doom-dracula)
+(unless (package-installed-p 'doom-themes)
+  (ignore-errors
+    (package-install 'doom-themes)))
 
 (provide 'packages) 
