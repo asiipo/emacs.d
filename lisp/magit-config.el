@@ -81,4 +81,21 @@ Only runs if enough time has passed since last sync."
 (with-eval-after-load 'org
   (my/org-setup-auto-sync))
 
+;; Pull org files on startup (useful for new computers or syncing changes)
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            ;; Small delay to ensure org-directory is available
+            (run-with-timer 3 nil
+              (lambda ()
+                (when (and org-directory (file-directory-p org-directory))
+                  (let ((default-directory org-directory))
+                    (when (file-exists-p ".git")
+                      (condition-case err
+                          (progn
+                            (message "Syncing org files from remote...")
+                            (shell-command "git pull origin main > /dev/null 2>&1")
+                            (message "Org files synced from remote"))
+                        (error
+                         (message "Org startup sync failed: %s" (error-message-string err)))))))))))
+
 (provide 'magit-config)
