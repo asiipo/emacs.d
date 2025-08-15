@@ -26,14 +26,11 @@
 ;; ============================================================================
 
 (defun my/org--ensure-reading-file ()
-  "Create ~/org/areas/reading.org with dashboard and books sections if missing.
+  "Create ~/org/areas/reading.org with basic structure if missing.
 Ensures the file has the basic structure needed for reading tracking."
   (unless (file-exists-p my/org-reading-file)
     (with-temp-file my/org-reading-file
       (insert "#+TITLE: Reading\n\n"
-              "* Dashboard\n"
-              "#+BEGIN: reading-dashboard\n"
-              "#+END:\n\n"
               "* Books\n"))))
 
 (defun my/org--ensure-books-file ()
@@ -46,17 +43,12 @@ Ensures the file exists for book notes and reviews."
               "This file contains detailed notes and reviews for books.\n\n"))))
 
 (defun my/org-reading-bootstrap ()
-  "Ensure reading file exists and has Dashboard and Books headings.
+  "Ensure reading file exists and has Books heading.
 Creates missing sections and saves the file."
   (my/org--ensure-reading-file)
   (my/org--ensure-books-file)
   (with-current-buffer (find-file-noselect my/org-reading-file)
     (org-with-wide-buffer
-      (goto-char (point-min))
-      ;; Ensure Dashboard section exists
-      (unless (re-search-forward "^\\* Dashboard\\b" nil t)
-        (goto-char (point-min))
-        (insert "* Dashboard\n#+BEGIN: reading-dashboard\n#+END:\n\n"))
       ;; Ensure Books section exists
       (goto-char (point-min))
       (unless (re-search-forward "^\\* Books\\b" nil t)
@@ -128,6 +120,20 @@ Uses planning time from current heading to compute remaining days."
       (max 1 (1+ (time-to-number-of-days  ;; Use 1+ for clearer intent
                   (time-subtract ts (current-time))))))))
 
+(defun my/org--average-pages-per-day-at-point ()
+  "Calculate average pages per day from START_DATE to now.
+Returns nil if no valid dates or if just started."
+  (let* ((start-date-str (org-entry-get (point) "START_DATE"))
+         (pages-read (string-to-number (or (org-entry-get (point) "CURRENT_PAGE") "0"))))
+    (when (and start-date-str (> pages-read 0))
+      (condition-case nil
+          (let* ((start-time (org-time-string-to-time start-date-str))
+                 (days-elapsed (max 1 (time-to-number-of-days 
+                                      (time-subtract (current-time) start-time))))
+                 (avg (/ pages-read (float days-elapsed))))
+            (if (> avg 0.1) avg nil))  ; Return nil for very small averages
+        (error nil)))))
+
 ;; Debug helper at a book heading
 (defun my/org-reading-dump ()
   "Echo detected planning and days-left for the current book heading.
@@ -140,8 +146,9 @@ Useful for debugging planning time detection."
                     (org-element-property :raw-value (org-element-property :deadline el))))
            (sc (and (org-element-property :scheduled el)
                     (org-element-property :raw-value (org-element-property :scheduled el))))
-           (days (my/org--days-left-at-point)))
-      (message "deadline=%S scheduled=%S => days-left=%S" dl sc days))))
+           (days (my/org--days-left-at-point))
+           (avg-ppd (my/org--average-pages-per-day-at-point)))
+      (message "deadline=%S scheduled=%S => days-left=%S avg-pages/day=%S" dl sc days avg-ppd))))
 
 ;; ============================================================================
 ;; BOOK MANAGEMENT (CRUD OPERATIONS)
@@ -274,52 +281,10 @@ Prompts for book selection and jumps to its notes section."
         (progn
           (org-show-subtree)
           (message "Opened notes for: %s" title))
-      (message "Notes not found for: %s" title))))
-
-(defun my/org-reading-refresh-dashboard ()
-  "Rebuild all dynamic blocks (dashboard) in reading.org.
-Updates the reading progress table with current data."
-  (interactive)
-  (with-current-buffer (find-file-noselect my/org-reading-file)
-    (org-with-wide-buffer
-      (org-update-all-dblocks)
-      (save-buffer)))
-  (message "Reading dashboard updated."))
-
+            (message "Notes not found for: %s" title))))
 ;; ============================================================================
-;; DASHBOARD DYNAMIC BLOCK
+;; DEADLINE MANAGEMENT
 ;; ============================================================================
-
-(defun org-dblock-write:reading-dashboard (_params)
-  "Build a minimal reading dashboard table from `my/org-reading-file`.
-Creates a table showing: Title | Pages Left | Progress % | Pages/day needed.
-This is an Org dynamic block that updates automatically."
-  (let (rows)
-    (with-current-buffer (find-file-noselect my/org-reading-file)
-      (org-with-wide-buffer
-        (goto-char (point-min))
-        (org-map-entries
-         (lambda ()
-           (let* ((title   (nth 4 (org-heading-components)))
-                  (total   (string-to-number (or (org-entry-get (point) "TOTAL_PAGES") "0")))
-                  (current (string-to-number (or (org-entry-get (point) "CURRENT_PAGE") "0")))
-                  (left    (max 0 (- total current)))
-                  (pct     (if (> total 0) (* 100.0 (/ current (float total))) 0.0))
-                  (dleft   (my/org--days-left-at-point))
-                  (ppd     (and (> left 0) (numberp dleft) (ceiling (/ (float left) dleft))))
-                  (completed (org-entry-get (point) "COMPLETED")))
-             (when (and (> total 0) (not completed))  ; Exclude completed books
-               (push (list title left (format "%.1f" pct)
-                           (if ppd (number-to-string ppd) "—"))
-                     rows))))
-         nil 'file)))
-    ;; Insert the table
-    (insert "| Title | Left | % | Pages/day |\n")
-    (insert "|-+-----+-----+-----------|\n")
-    (dolist (r (nreverse rows))
-      (insert (format "| %s | %d | %s | %s |\n"
-                      (nth 0 r) (nth 1 r) (nth 2 r) (nth 3 r))))
-    (org-table-align)))
 
 (defun my/org-reading-set-deadline ()
   "Set or clear DEADLINE for a chosen book by title.
@@ -354,7 +319,6 @@ Empty date clears the deadline. Uses Org's date reading interface."
 (global-set-key (kbd "C-c r u") #'my/org-reading-set-current-page)  ;; Update current page
 (global-set-key (kbd "C-c r c") #'my/org-reading-complete-book)     ;; Complete a book
 (global-set-key (kbd "C-c r d") #'my/org-reading-delete-book)       ;; Delete a book
-(global-set-key (kbd "C-c r R") #'my/org-reading-refresh-dashboard) ;; Rebuild dashboard
 (global-set-key (kbd "C-c r D") #'my/org-reading-set-deadline)      ;; Change deadline
 
 (provide 'reading-tracker)

@@ -101,20 +101,22 @@ Collects reading progress data for display in the welcome dashboard."
         (with-current-buffer (marker-buffer mk)
           (org-with-wide-buffer
             (goto-char mk)
-            (let* ((total   (string-to-number (or (org-entry-get (point) "TOTAL_PAGES") "0")))
-                   (current (string-to-number (or (org-entry-get (point) "CURRENT_PAGE") "0")))
-                   (left    (max 0 (- total current)))
-                   (pct     (if (> total 0) (* 100.0 (/ current (float total))) 0.0))
-                   (dleft   (my/org--days-left-at-point))
-                   (ppd     (and (> left 0) (numberp dleft)
-                                 (ceiling (/ (float left) dleft)))))
+            (let* ((total     (string-to-number (or (org-entry-get (point) "TOTAL_PAGES") "0")))
+                   (pages-read (string-to-number (or (org-entry-get (point) "CURRENT_PAGE") "0")))
+                   (left      (max 0 (- total pages-read)))
+                   (pct       (if (> total 0) (* 100.0 (/ pages-read (float total))) 0.0))
+                   (dleft     (my/org--days-left-at-point))
+                   (ppd       (and (> left 0) (numberp dleft)
+                                   (ceiling (/ (float left) dleft))))
+                   (avg-ppd   (my/org--average-pages-per-day-at-point)))
               (when (> total 0)
                 (push (list
                        ;; Avoid breaking the table if title contains '|'
                        (replace-regexp-in-string "|" "/" title)
                        left
                        (format "%.1f" pct)
-                       (if ppd (number-to-string ppd) "—"))
+                       (if ppd (number-to-string ppd) "—")
+                       (if avg-ppd (format "%.1f" avg-ppd) "—"))
                       rows)))))))
     (nreverse rows)))
 
@@ -129,14 +131,15 @@ Creates a reading progress table showing title, pages left, progress %, and page
           (insert "No books in progress yet\n")
           (insert "Use C-c r a to add your first book\n\n"))
       (progn
-        (insert (format "%-30s %6s %8s %10s\n" "Title" "Left" "Progress" "Pages/day"))
-        (insert (make-string 30 ?-) " " (make-string 6 ?-) " " (make-string 8 ?-) " " (make-string 10 ?-) "\n")
+        (insert (format "%-30s %6s %8s %10s %8s\n" "Title" "Left" "Progress" "Pages/day" "Avg/day"))
+        (insert (make-string 30 ?-) " " (make-string 6 ?-) " " (make-string 8 ?-) " " (make-string 10 ?-) " " (make-string 8 ?-) "\n")
         (dolist (r rows)
-          (insert (format "%-30s %6d %7s%% %10s\n"
+          (insert (format "%-30s %6d %7s%% %10s %8s\n"
                           (truncate-string-to-width (nth 0 r) 30 nil nil "…")
                           (nth 1 r) 
                           (nth 2 r) 
-                          (nth 3 r))))))))
+                          (nth 3 r)
+                          (nth 4 r))))))))
 
 ;; ============================================================================
 ;; MAIN CHEATSHEET FUNCTIONS
