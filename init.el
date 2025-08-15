@@ -47,6 +47,7 @@
 
 ;; External integrations
 (require 'magit-config)        ;; Git integration
+(require 'spell-checking)      ;; Modern spell checking with Jinx
 
 ;; ============================================================================
 ;; END OF INIT.EL

@@ -1,40 +1,21 @@
 * Overview
 
-My personal Emacs configuration.
+This repository contains a personal Emacs configuration designed for academic and professional productivity workflows.
 
-Built to support note-taking, task scheduling, and reading tracking. Utilizes automatic Git sync.
+The system provides comprehensive support for note-taking, task management, project organization, reading tracking, and bilingual writing with automatic spell checking. All organizational data is maintained in Org mode with automatic Git synchronization for seamless multi-device workflows.
 
 * Structure
 
 #+BEGIN_EXAMPLE
 ~/org/
 ├── inbox.org           # Capture everything here
-├── projects/           # Active projects
-├── areas/              # Ongoing responsibilities
-├── resources/          # Reference materials  
-└── archive/            # Completed items
+├── projects/           # Active projects with defined outcomes
+├── areas/              # Ongoing responsibilities to maintain
+├── resources/          # Reference materials and knowledge base
+└── archive/            # Completed items and inactive projects
 #+END_EXAMPLE
 
 * Auto-Sync
 
-Every save to =~/org/= will automatically commit and push to Git remote, keeping all computers synchronized. Use =C-c g t= to toggle or =C-c g s= to sync manually.
+The configuration includes an automated Git synchronization system that monitors the =~/org/= directory for changes. Upon detecting modifications to organizational files, the system automatically commits changes with descriptive messages and synchronizes with the configured remote repository.
 
-* Key Bindings
-
-** Org & Agenda
-| Key       | Action            |
-|-----------+-------------------|
-| =C-c a=   | Agenda            |
-| =C-c c=   | Capture           |
-| =C-c i=   | Inbox             |
-| =C-c C-w= | Refile            |
-| =C-c h=   | Welcome screen    |
-| =C-c C-x a= | Archive file    |
-
-** Git Sync
-| Key       | Action              |
-|-----------+---------------------|
-| =C-c g g= | Git status (org)    |
-| =C-c g s= | Sync to Git now     |
-| =C-c g t= | Toggle auto-sync    |
-| =C-x g=   | Magit status (any)  |

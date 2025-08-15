@@ -46,7 +46,17 @@
     ("C-c g g" "Git status (org)"                    my/magit-org-status)
     ("C-c g s" "Sync org to remote now"              my/org-sync-now)
     ("C-c g t" "Toggle auto-sync"                    my/org-toggle-auto-sync)
-    ("C-x g"   "Magit status (any repo)"             magit-status))
+    ("C-x g"   "Magit status (any repo)"             magit-status)
+
+    (:section "Spell Checking")
+    ("C-c s c" "Correct word"                        jinx-correct)
+    ("C-c s b" "Correct buffer"                      my/jinx-correct-buffer)
+    ("C-c s l" "Switch language"                     jinx-languages)
+    ("C-c s n" "Next misspelling"                    jinx-next)
+    ("C-c s p" "Previous misspelling"                jinx-previous)
+    ("M-x my/jinx-switch-to-english" "English only"  my/jinx-switch-to-english)
+    ("M-x my/jinx-switch-to-finnish" "Finnish only"  my/jinx-switch-to-finnish)
+    ("M-x my/jinx-switch-to-bilingual" "EN + FI"     my/jinx-switch-to-bilingual))
   "Rows for the startup cheatsheet buffer.")
 
 ;; ============================================================================
@@ -164,6 +174,7 @@ Creates the complete welcome page with reading dashboard and key bindings."
     (let ((org-section '())
           (reading-section '())
           (git-section '())
+          (spell-section '())
           (current-section nil))
       
       ;; Separate the sections
@@ -176,20 +187,23 @@ Creates the complete welcome page with reading dashboard and key bindings."
          ((string-equal current-section "Reading tracker")
           (push row reading-section))
          ((string-equal current-section "Git Sync")
-          (push row git-section))))
+          (push row git-section))
+         ((string-equal current-section "Spell Checking")
+          (push row spell-section))))
       
       ;; Reverse to maintain original order
       (setq org-section (nreverse org-section))
       (setq reading-section (nreverse reading-section))
       (setq git-section (nreverse git-section))
+      (setq spell-section (nreverse spell-section))
       
-      ;; Insert two-column layout with Git section below
+      ;; Insert 2x2 grid layout
       (insert "Key Bindings\n")
       (insert "════════════\n\n")
       (insert (format "%-40s %s\n" "ORG & AGENDA" "READING TRACKER"))
       (insert (format "%-40s %s\n" (make-string 12 ?-) (make-string 15 ?-)))
       
-      ;; Print org and reading sections side by side
+      ;; Print org and reading sections side by side (top row)
       (let ((max-rows (max (length org-section) (length reading-section))))
         (dotimes (i max-rows)
           (let ((org-row (nth i org-section))
@@ -202,13 +216,22 @@ Creates the complete welcome page with reading dashboard and key bindings."
                                 (format "%-15s %s" (nth 0 reading-row) (nth 1 reading-row))
                               ""))))))
       
-      ;; Add Git Sync section below
-      (when git-section
-        (insert "\n")
-        (insert (format "%s\n" "GIT SYNC"))
-        (insert (format "%s\n" (make-string 8 ?-)))
-        (dolist (git-row git-section)
-          (insert (format "%-15s %s\n" (nth 0 git-row) (nth 1 git-row))))))
+      ;; Add Git Sync and Spell Checking sections below (bottom row)
+      (insert "\n")
+      (insert (format "%-40s %s\n" "GIT SYNC" "SPELL CHECKING"))
+      (insert (format "%-40s %s\n" (make-string 8 ?-) (make-string 14 ?-)))
+      
+      (let ((max-rows (max (length git-section) (length spell-section))))
+        (dotimes (i max-rows)
+          (let ((git-row (nth i git-section))
+                (spell-row (nth i spell-section)))
+            (insert (format "%-40s %s\n"
+                            (if git-row
+                                (format "%-15s %s" (nth 0 git-row) (nth 1 git-row))
+                              "")
+                            (if spell-row
+                                (format "%-15s %s" (nth 0 spell-row) (nth 1 spell-row))
+                              "")))))))
     
     (goto-char (point-min))))
 

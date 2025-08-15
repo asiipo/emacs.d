@@ -41,4 +41,15 @@
     (error 
      (message "Warning: Failed to install doom-themes: %s" (error-message-string err)))))
 
+;; Ensure jinx is installed for modern spell checking
+(unless (package-installed-p 'jinx)
+  (condition-case err
+      (progn
+        (message "Installing jinx...")
+        (package-install 'jinx)
+        (message "Jinx installed successfully"))
+    (error 
+     (message "Warning: Failed to install jinx: %s" (error-message-string err))
+     (message "Please install enchant library first: brew install enchant"))))
+
 (provide 'packages) 
