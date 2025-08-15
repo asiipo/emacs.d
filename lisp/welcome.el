@@ -43,10 +43,10 @@
     ("C-c r d" "Delete a book"                       my/org-reading-delete-book)
 
     (:section "Git Sync")
-    ("C-c g"   "Git status (org)"                    my/magit-org-status)
-    ("C-c G s" "Sync org to remote now"              my/org-sync-now)
-    ("C-c G t" "Toggle auto-sync"                    my/org-toggle-auto-sync)
-    ("C-x g"   "Magit status"                        magit-status))
+    ("C-c g g" "Git status (org)"                    my/magit-org-status)
+    ("C-c g s" "Sync org to remote now"              my/org-sync-now)
+    ("C-c g t" "Toggle auto-sync"                    my/org-toggle-auto-sync)
+    ("C-x g"   "Magit status (any repo)"             magit-status))
   "Rows for the startup cheatsheet buffer.")
 
 ;; ============================================================================

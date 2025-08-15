@@ -10,8 +10,7 @@
           (message "Org directory is not a git repository")))
     (message "Org directory not found")))
 
-;; Always open magit for org directory, not current directory
-(global-set-key (kbd "C-x g") #'my/magit-org-status)
+;; Git keybindings will be set at the end of file
 
 ;; Use same window behavior for popups if you prefer minimal window churn
 (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
@@ -115,10 +114,13 @@ Only runs if enough time has passed since last sync."
   (message "Org auto-sync %s" 
            (if my/org-auto-sync-enabled "ENABLED" "DISABLED")))
 
-;; Keybindings
-(global-set-key (kbd "C-c g") #'my/magit-org-status)      ;; Git status for org directory
-(global-set-key (kbd "C-c G s") #'my/org-sync-now)        ;; Manual sync (uppercase G)
-(global-set-key (kbd "C-c G t") #'my/org-toggle-auto-sync) ;; Toggle auto-sync
+;; Simplified git keybindings - C-c g prefix for org-specific commands
+(global-set-key (kbd "C-c g g") #'my/magit-org-status)     ;; Git status for org directory  
+(global-set-key (kbd "C-c g s") #'my/org-sync-now)         ;; Manual sync
+(global-set-key (kbd "C-c g t") #'my/org-toggle-auto-sync) ;; Toggle auto-sync
+
+;; Keep standard magit keybinding for general use
+(global-set-key (kbd "C-x g") #'magit-status)              ;; Standard magit (prompts for repo)
 
 ;; Initialize auto-sync when org-directory is available
 (with-eval-after-load 'org

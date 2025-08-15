@@ -34,6 +34,7 @@ Every save to =~/org/= will automatically commit and push to Git remote, keeping
 ** Git Sync
 | Key       | Action              |
 |-----------+---------------------|
+| =C-c g g= | Git status (org)    |
 | =C-c g s= | Sync to Git now     |
 | =C-c g t= | Toggle auto-sync    |
-| =C-x g=   | Magit status        |
+| =C-x g=   | Magit status (any)  |
