@@ -15,6 +15,7 @@ games/
 pdf/
 *.pdf
 .vscode/
+eln-cache/
 
 ielm-history.eld
 *.elc

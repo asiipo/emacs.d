@@ -49,6 +49,23 @@
 (require 'magit-config)        ;; Git integration
 (require 'spell-checking)      ;; Modern spell checking with Jinx
 
+
+
+
+
+;; --- Minimal Org LaTeX preview setup ---
+
+;; Make previews bigger
+(setq org-format-latex-options
+      (plist-put org-format-latex-options :scale 1.5))
+
+;; Use crisp SVG images instead of blurry PNGs
+(setq org-preview-latex-default-process 'dvisvgm)
+
+;; Auto-render LaTeX fragments when opening Org files
+(setq org-startup-with-latex-preview t)
+
+
 ;; ============================================================================
 ;; END OF INIT.EL
 ;; ============================================================================
