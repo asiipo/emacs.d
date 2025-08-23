@@ -9,6 +9,30 @@
 (require 'org-table)         ;; org-table-align
 
 ;; ============================================================================
+;; GIT STATUS HELPER
+;; ============================================================================
+
+(defun my/welcome--git-status-clean-p ()
+  "Return t if org directory git status is completely clean, nil otherwise.
+Detects: unstaged changes, staged changes, untracked files, unmerged files, and ahead/behind remote."
+  (let ((org-dir (or org-directory (expand-file-name "~/org"))))
+    (when (and org-dir (file-directory-p org-dir))
+      (let ((default-directory org-dir))
+        (when (file-exists-p ".git")
+          (condition-case nil
+              (let* ((status-output (shell-command-to-string "git status --porcelain"))
+                     (branch-status (shell-command-to-string "git status -b --porcelain | head -1"))
+                     (has-local-changes (not (string-empty-p (string-trim status-output))))
+                     (is-ahead (string-match "ahead" branch-status))
+                     (is-behind (string-match "behind" branch-status)))
+                ;; Repository is clean only if:
+                ;; 1. No local file changes (unstaged, staged, untracked, unmerged)
+                ;; 2. Not ahead of remote
+                ;; 3. Not behind remote
+                (not (or has-local-changes is-ahead is-behind)))
+            (error nil)))))))
+
+;; ============================================================================
 ;; STARTUP CONFIGURATION
 ;; ============================================================================
 
@@ -218,7 +242,13 @@ Creates the complete welcome page with reading dashboard and key bindings."
       
       ;; Add Git Sync and Spell Checking sections below (bottom row)
       (insert "\n")
-      (insert (format "%-40s %s\n" "GIT SYNC" "SPELL CHECKING"))
+      (let* ((is-clean (my/welcome--git-status-clean-p))
+             (status-text (if is-clean 
+                              "GIT SYNC ✅" 
+                              "GIT SYNC ⚠️")))
+        (insert (format "%-40s %s\n" 
+                        status-text
+                        "SPELL CHECKING")))
       (insert (format "%-40s %s\n" (make-string 8 ?-) (make-string 14 ?-)))
       
       (let ((max-rows (max (length git-section) (length spell-section))))

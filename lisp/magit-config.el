@@ -19,8 +19,8 @@
 ;; AUTO-SYNC ORG DIRECTORY
 ;; ============================================================================
 
-(defvar my/org-auto-sync-enabled t
-  "Enable automatic Git sync for org directory.")
+(defvar my/org-auto-sync-enabled nil
+  "Enable automatic Git sync for org directory. DISABLED BY DEFAULT.")
 
 (defvar my/org-last-sync-time 0
   "Timestamp of last sync to prevent too frequent commits.")
@@ -93,12 +93,56 @@ Only runs if enough time has passed since last sync and no other sync is running
            (my/org-sync-set-indicator nil)
            (my/org-sync-message (format "❌ Org auto-sync failed: %s" (error-message-string err)) t)))))))
 
-;; Manual sync function - now does full bidirectional sync
+;; Manual sync function - bypasses auto-sync setting
 (defun my/org-sync-now ()
-  "Manually sync org directory: pull latest, commit, and push changes."
+  "Manually sync org directory: pull latest, commit, and push changes.
+This works regardless of the auto-sync setting."
   (interactive)
-  (setq my/org-last-sync-time 0) ; Reset timer to force sync
-  (my/org-git-auto-sync))
+  (when (and org-directory
+             (file-directory-p org-directory)
+             (not my/org-sync-in-progress))  ;; Prevent race conditions
+    (let ((default-directory org-directory))
+      (when (file-exists-p ".git")
+        (condition-case err
+            (progn
+              ;; Set sync indicator and warning
+              (my/org-sync-set-indicator t)
+              (my/org-sync-message "⚠️  MANUAL SYNC IN PROGRESS - Don't quit Emacs!" t)
+              
+              ;; Step 1: Pull latest changes first (with error checking)
+              (let ((pull-result (shell-command "git pull origin main > /dev/null 2>&1")))
+                (unless (zerop pull-result)
+                  (my/org-sync-message "⚠️  Git pull had issues, continuing with local changes" t)))
+              
+              ;; Step 2: Add all local changes
+              (shell-command "git add -A")
+              
+              ;; Step 3: Check if there are changes to commit
+              (let ((status (shell-command-to-string "git status --porcelain")))
+                (if (not (string-empty-p (string-trim status)))
+                    (progn
+                      ;; Step 4: Commit with timestamp (secure from injection attacks)
+                      (let ((commit-msg (format "Manual sync: %s" 
+                                                (format-time-string "%Y-%m-%d %H:%M:%S"))))
+                        ;; Use shell-quote-argument to prevent command injection
+                        (shell-command (format "git commit -m %s" (shell-quote-argument commit-msg)))
+                        ;; Step 5: Push to remote (with error checking)
+                        (let ((push-result (shell-command "git push origin main > /dev/null 2>&1")))
+                          (if (zerop push-result)
+                              (my/org-sync-message "✅ Manual sync completed (pull + commit + push)")
+                            (my/org-sync-message "⚠️  Push failed, changes saved locally" t)))
+                        (setq my/org-last-sync-time (float-time))))
+                  ;; No local changes, but we still pulled
+                  (progn
+                    (my/org-sync-message "✅ Manual sync completed (pull only)")
+                    (setq my/org-last-sync-time (float-time)))))
+              
+              ;; Clear sync indicator
+              (my/org-sync-set-indicator nil))
+          (error
+           ;; Clear indicator on error too
+           (my/org-sync-set-indicator nil)
+           (my/org-sync-message (format "❌ Manual sync failed: %s" (error-message-string err)) t)))))))
 
 ;; Variable to track active sync timer (prevents memory leaks)
 (defvar my/org-sync-timer nil
@@ -139,9 +183,9 @@ Only runs if enough time has passed since last sync and no other sync is running
 ;; Keep standard magit keybinding for general use
 (global-set-key (kbd "C-x g") #'magit-status)              ;; Standard magit (prompts for repo)
 
-;; Initialize auto-sync when org-directory is available
-(with-eval-after-load 'org
-  (my/org-setup-auto-sync))
+;; Auto-save-sync is DISABLED by default - use C-c g t to enable if needed
+;; (with-eval-after-load 'org
+;;   (my/org-setup-auto-sync))
 
 ;; Add sync indicator to mode line
 (add-to-list 'mode-line-misc-info
