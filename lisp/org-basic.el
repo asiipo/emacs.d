@@ -146,8 +146,9 @@ Updates both the function and variable approaches for maximum compatibility."
 ;; SIMPLIFIED FILE ARCHIVING SYSTEM
 ;; ============================================================================
 
+
 (defun my/org-archive-file ()
-  "Move the current Org file into the appropriate archive subfolder."
+  "Move the current Org file into the appropriate archive subfolder, with confirmation."
   (interactive)
   (unless (derived-mode-p 'org-mode) 
     (user-error "Not in an Org buffer"))
@@ -163,10 +164,6 @@ Updates both the function and variable approaches for maximum compatibility."
                          (expand-file-name "archive" org-directory)
                        (expand-file-name (concat "archive/" subdir) org-directory)))
          (dest (expand-file-name file-name archive-dir)))
-    
-    ;; Create archive directory if needed
-    (make-directory archive-dir t)
-    
     ;; Add timestamp if file exists to avoid conflicts
     (when (file-exists-p dest)
       (setq dest (expand-file-name
@@ -175,13 +172,15 @@ Updates both the function and variable approaches for maximum compatibility."
                           (format-time-string "%Y%m%d-%H%M%S")
                           (file-name-extension file-name t))
                   archive-dir)))
-    
-    ;; Save and move file
-    (save-buffer)
-    (kill-buffer (current-buffer))
-    (rename-file src dest t)
-    (find-file dest)
-    (message "Archived to: %s" dest)))
+    (when (y-or-n-p (format "Archive this file to %s? " dest))
+      ;; Create archive directory if needed
+      (make-directory archive-dir t)
+      ;; Save and move file
+      (save-buffer)
+      (kill-buffer (current-buffer))
+      (rename-file src dest t)
+      (find-file dest)
+      (message "Archived to: %s" dest))))
 
 ;; Archive keybindings - simplified to one key
 (with-eval-after-load 'org
