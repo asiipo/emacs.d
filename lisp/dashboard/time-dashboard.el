@@ -43,7 +43,11 @@ Returns list of (FILE-NAME HEADING DURATION-MINUTES DURATION-STR) for display."
                     (let ((heading-pos (re-search-backward "^\\*+ " nil t)))
                       (when heading-pos
                         (goto-char heading-pos)
-                        (let* ((heading (nth 4 (org-heading-components)))
+                        ;; Extract heading manually since org-mode isn't active in temp buffer
+                        (let* ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+                               (heading (if (string-match "^\\*+ +\\(.*\\)$" line)
+                                           (match-string 1 line)
+                                         "Unknown"))
                                (file-name (file-name-nondirectory file))
                                (duration-mins (time-dashboard--parse-duration duration)))
                           (push (list file-name heading duration-mins duration) clock-entries)))))))))
