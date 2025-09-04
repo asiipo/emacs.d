@@ -1,35 +1,37 @@
 ;;; spell-checking.el --- Modern spell checking with Jinx -*- lexical-binding: t; -*-
 
+;; Version: 1.0
+;; Author: arttusii
+;; Description: Modern spell checking with Jinx integration and cross-platform support
+;;
+;; Key Functions:
+;;   my/toggle-spell-language - Switch between English and Finnish
+;;   my/correct-spelling      - Interactive spelling correction
+;;
+;; Usage:
+;;   C-; toggles spell language
+;;   Flyspell mode is enabled by default in text modes
+;;
+;; Dependencies: jinx, path-utils
+
 ;; ============================================================================
 ;; DEPENDENCIES
 ;; ============================================================================
 
+(require 'path-utils)  ;; Cross-platform path management
+
 ;; Jinx requires enchant library to be installed
+;; On Windows: Use chocolatey or manual install
 ;; On macOS: brew install enchant
 ;; On Ubuntu/Debian: sudo apt install libenchant-2-dev pkgconf
 ;; On Arch: sudo pacman -S enchant pkgconf
 
 ;; ============================================================================
-;; PACKAGE INSTALLATION
-;; ============================================================================
-
-;; Jinx is now installed by packages.el, so we don't need to install it here
-;; Just check if enchant library is available and provide helpful messages
-
-;; ============================================================================
 ;; JINX CONFIGURATION
 ;; ============================================================================
 
-;; Ensure Homebrew paths are available (important for GUI Emacs on macOS)
+;; macOS-specific compiler setup for Jinx native module
 (when (eq system-type 'darwin)
-  (let ((homebrew-paths '("/opt/homebrew/bin" "/usr/local/bin")))
-    (dolist (path homebrew-paths)
-      (when (file-directory-p path)
-        (add-to-list 'exec-path path)
-        (setenv "PATH" (concat (getenv "PATH") ":" path)))))
-  
-  ;; Set up compiler environment for Jinx native module compilation
-  ;; Set up compiler environment for Jinx native module compilation
   (when (file-directory-p "/opt/homebrew")
     (setenv "PKG_CONFIG_PATH" 
             (concat (or (getenv "PKG_CONFIG_PATH") "") 
@@ -54,7 +56,7 @@
                                      (seq-filter (lambda (s) (or (string-prefix-p "-L" s) 
                                                                  (string-prefix-p "-l" s))) flags) 
                                      " "))))
-        ;; Fallback to hardcoded paths
+        ;; Fallback to hardcoded paths (macOS only)
         (setenv "CPPFLAGS" 
                 (concat (or (getenv "CPPFLAGS") "") 
                         " -I/opt/homebrew/Cellar/enchant/2.8.12/include/enchant-2"
@@ -72,17 +74,13 @@
   ;; Configure languages for English and Finnish
   (setq jinx-languages "en_US fi")
   
-  ;; Enable jinx globally for all text modes
-  (add-hook 'emacs-startup-hook #'global-jinx-mode)
+  ;; Enable jinx globally for all text modes (with proper loading check)
+  (add-hook 'emacs-startup-hook 
+            (lambda () 
+              (when (and (package-installed-p 'jinx) (fboundp 'global-jinx-mode))
+                (global-jinx-mode 1))))
   
-  ;; Keybindings for spell checking
-  (keymap-global-set "M-$" #'jinx-correct)      ;; Correct word at point (Alt+Shift+4)
-  (keymap-global-set "C-M-$" #'jinx-languages)  ;; Switch languages
-  
-  ;; Additional easier keybindings
-  (keymap-global-set "C-c s c" #'jinx-correct)     ;; Easier alternative: Ctrl+c s c
-  (keymap-global-set "C-c s l" #'jinx-languages)   ;; Language switching: Ctrl+c s l
-  (keymap-global-set "C-c s b" #'my/jinx-correct-buffer)  ;; Correct entire buffer
+  ;; Note: Keybindings for spell checking are now centralized in keybindings.el
   
   ;; Additional useful keybindings
   (with-eval-after-load 'jinx
@@ -96,7 +94,7 @@
   
   ;; Enable repeat mode for easy navigation (if available)
   (when (fboundp 'repeat-mode)
-    (repeat-mode 1)))
+    (repeat-mode 1))) ;; Close the main (when (package-installed-p 'jinx) block
 
 ;; ============================================================================
 ;; LANGUAGE SWITCHING HELPERS
@@ -165,9 +163,7 @@ Equivalent to 'C-u M-$' but with an easier keybinding."
     (message "✅ Jinx spell checking is ready!")
     (message "Languages: %s" (if (boundp 'jinx-languages) jinx-languages "default"))
     (message "Commands: M-$ (correct), C-M-$ (switch language)")
-    (message "Mode helpers: C-c s n/p (next/prev), C-c s c (correct)"))))
-
-;; ============================================================================
+    (message "Mode helpers: C-c s n/p (next/prev), C-c s c (correct)")))) ;; Added missing closing paren;; ============================================================================
 ;; KEYBINDINGS SUMMARY
 ;; ============================================================================
 

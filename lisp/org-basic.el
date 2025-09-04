@@ -1,4 +1,15 @@
-;;; org-basic.el --- PARA structure, agenda, refile, archive -*- lexical-binding: t; -*-
+;;; org-basic.el --- Org mode basic configuration -*- lexical-binding: t; -*-
+
+;; Version: 1.0
+;; Author: arttusii
+;; Description: Fundamental Org mode settings for document structure and behavior
+;;
+;; Key Features:
+;;   - Visual enhancements (org-indent, headlines styling)
+;;   - Better list handling and structure editing
+;;   - Improved source block editing experience
+;;
+;; Dependencies: Built-in Org mode packages only
 
 ;; ============================================================================
 ;; PARA DIRECTORY STRUCTURE
@@ -136,11 +147,7 @@ Updates both the function and variable approaches for maximum compatibility."
 ;; GLOBAL KEYBINDINGS
 ;; ============================================================================
 
-;; Quick access to agenda and inbox
-(global-set-key (kbd "C-c a") #'org-agenda)
-(global-set-key (kbd "C-c i") #'my/goto-inbox)
-(global-set-key (kbd "C-c A") #'my/refresh-agenda)
-(global-set-key (kbd "C-c C-w") #'org-refile)  ;; Refile items from inbox
+;; Keybindings are now centralized in keybindings.el
 
 ;; ============================================================================
 ;; SIMPLIFIED FILE ARCHIVING SYSTEM

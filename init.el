@@ -7,6 +7,7 @@
 
 ;; Add our lisp directory to load path
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "lisp/dashboard" user-emacs-directory))
 
 ;; Initialize package system and install required packages FIRST
 (require 'packages)
@@ -34,32 +35,12 @@
 ;; MODULE LOADING
 ;; ============================================================================
 
-;; Core system modules
-(require 'core-init)           ;; backups, autosaves, editing defaults
-(require 'org-basic)           ;; PARA structure, agenda, refile, archive
-(require 'org-capture-config)  ;; capture templates and inbox workflow
-(require 'org-agenda-config)   ;; agenda display and behavior
+;; Load the centralized config loader first
+(require 'config-loader)
 
-;; Specialized modules
-(require 'reading-tracker)     ;; reading progress tracking
-(require 'welcome)             ;; startup cheatsheet and reading dashboard
-(require 'journal)             ;; daily journaling with datetree
-
-;; External integrations
-(require 'magit-config)        ;; Git integration
-(require 'spell-checking)      ;; Modern spell checking with Jinx
-
-;; --- Minimal Org LaTeX preview setup ---
-
-;; Make previews bigger
-(setq org-format-latex-options
-      (plist-put org-format-latex-options :scale 2.0))
-
-;; Use crisp SVG images instead of blurry PNGs
-(setq org-preview-latex-default-process 'dvisvgm)
-
-;; Auto-render LaTeX fragments when opening Org files
-(setq org-startup-with-latex-preview t)
+;; Use the centralized config loader for better error handling  
+(unless (my/load-all-config-modules)
+  (message "⚠️  Some modules failed to load. Run M-x my/diagnose-config for details."))
 
 (when (eq system-type 'darwin)
   ;; On macOS, use left Option as Meta, disable right Option as Meta

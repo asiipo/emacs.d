@@ -123,8 +123,7 @@ If the file exists, append -2, -3, etc. until we find an unused name."
 ;; KEYBINDINGS AND SETTINGS
 ;; ============================================================================
 
-;; Global capture keybinding
-(global-set-key (kbd "C-c c") #'org-capture)
+;; Keybindings are now centralized in keybindings.el
 
 ;; Enable speed commands for faster Org navigation
 ;; Based on Org Mode Guide section 2.1

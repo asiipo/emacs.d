@@ -1,4 +1,15 @@
-;;; magit-config.el --- Magit setup -*- lexical-binding: t; -*-
+;;; magit-config.el --- Git integration with auto-sync capabilities -*- lexical-binding: t; -*-
+
+;; Version: 1.0  
+;; Author: arttusii
+;; Description: Git integration with automatic sync capabilities and status indicators
+;;
+;; Key Features:
+;;   - Automatic push/pull on file operations
+;;   - Mode line git status indicators
+;;   - Unified git sync implementation
+;;
+;; Dependencies: magit
 
 (defun my/magit-org-status ()
   "Open magit-status for the org directory specifically."
@@ -42,6 +53,54 @@
       (message (propertize msg 'face '(:foreground "orange" :weight bold)))
     (message (propertize msg 'face '(:foreground "forest green" :weight bold)))))
 
+(defun my/org-git-sync-impl (operation-name)
+  "Perform git sync operation with standardized error handling.
+OPERATION-NAME is a string describing the operation (e.g., 'Auto-sync', 'Manual sync')."
+  (let ((default-directory org-directory))
+    (when (file-exists-p ".git")
+      (condition-case err
+          (progn
+            ;; Set sync indicator and warning
+            (my/org-sync-set-indicator t)
+            (my/org-sync-message (format "⚠️  %s IN PROGRESS - Don't quit Emacs!" (upcase operation-name)) t)
+            
+            ;; Step 1: Pull latest changes first (with error checking)
+            (let ((pull-result (shell-command "git pull origin main > /dev/null 2>&1")))
+              (unless (zerop pull-result)
+                (my/org-sync-message "⚠️  Git pull had issues, continuing with local changes" t)))
+            
+            ;; Step 2: Add all local changes
+            (shell-command "git add -A")
+            
+            ;; Step 3: Check if there are changes to commit
+            (let ((status (shell-command-to-string "git status --porcelain")))
+              (if (not (string-empty-p (string-trim status)))
+                  (progn
+                    ;; Step 4: Commit with timestamp (secure from injection attacks)
+                    (let ((commit-msg (format "%s: %s" operation-name
+                                              (format-time-string "%Y-%m-%d %H:%M:%S"))))
+                      ;; Use shell-quote-argument to prevent command injection
+                      (shell-command (format "git commit -m %s" (shell-quote-argument commit-msg)))
+                      ;; Step 5: Push to remote (with error checking)
+                      (let ((push-result (shell-command "git push origin main > /dev/null 2>&1")))
+                        (if (zerop push-result)
+                            (my/org-sync-message (format "✅ %s completed (pull + commit + push)" operation-name))
+                          (my/org-sync-message "⚠️  Push failed, changes saved locally" t)))
+                      (setq my/org-last-sync-time (float-time))))
+                ;; No local changes, but we still pulled
+                (progn
+                  (my/org-sync-message (format "✅ %s completed (pull only)" operation-name))
+                  (setq my/org-last-sync-time (float-time)))))
+            
+            ;; Clear sync indicator
+            (my/org-sync-set-indicator nil)
+            t) ;; Return success
+        (error
+         ;; Clear indicator on error too
+         (my/org-sync-set-indicator nil)
+         (my/org-sync-message (format "❌ %s failed: %s" operation-name (error-message-string err)) t)
+         nil))))) ;; Return failure
+
 (defun my/org-git-auto-sync ()
   "Automatically sync org directory: pull first, then commit and push changes.
 Only runs if enough time has passed since last sync and no other sync is running."
@@ -50,48 +109,7 @@ Only runs if enough time has passed since last sync and no other sync is running
              org-directory
              (file-directory-p org-directory)
              (> (float-time) (+ my/org-last-sync-time my/org-sync-delay)))
-    (let ((default-directory org-directory))
-      (when (file-exists-p ".git")
-        (condition-case err
-            (progn
-              ;; Set sync indicator and warning
-              (my/org-sync-set-indicator t)
-              (my/org-sync-message "⚠️  SYNC IN PROGRESS - Don't quit Emacs!" t)
-              
-              ;; Step 1: Pull latest changes first (with error checking)
-              (let ((pull-result (shell-command "git pull origin main > /dev/null 2>&1")))
-                (unless (zerop pull-result)
-                  (my/org-sync-message "⚠️  Git pull had issues, continuing with local changes" t)))
-              
-              ;; Step 2: Add all local changes
-              (shell-command "git add -A")
-              
-              ;; Step 3: Check if there are changes to commit
-              (let ((status (shell-command-to-string "git status --porcelain")))
-                (if (not (string-empty-p (string-trim status)))
-                    (progn
-                      ;; Step 4: Commit with timestamp (secure from injection attacks)
-                      (let ((commit-msg (format "Auto-sync: %s" 
-                                                (format-time-string "%Y-%m-%d %H:%M:%S"))))
-                        ;; Use shell-quote-argument to prevent command injection
-                        (shell-command (format "git commit -m %s" (shell-quote-argument commit-msg)))
-                        ;; Step 5: Push to remote (with error checking)
-                        (let ((push-result (shell-command "git push origin main > /dev/null 2>&1")))
-                          (if (zerop push-result)
-                              (my/org-sync-message "✅ Org directory synced (pull + commit + push)")
-                            (my/org-sync-message "⚠️  Push failed, changes saved locally" t)))
-                        (setq my/org-last-sync-time (float-time))))
-                  ;; No local changes, but we still pulled
-                  (progn
-                    (my/org-sync-message "✅ Org directory synced (pull only)")
-                    (setq my/org-last-sync-time (float-time)))))
-              
-              ;; Clear sync indicator
-              (my/org-sync-set-indicator nil))
-          (error
-           ;; Clear indicator on error too
-           (my/org-sync-set-indicator nil)
-           (my/org-sync-message (format "❌ Org auto-sync failed: %s" (error-message-string err)) t)))))))
+    (my/org-git-sync-impl "Auto-sync")))
 
 ;; Manual sync function - bypasses auto-sync setting
 (defun my/org-sync-now ()
@@ -101,48 +119,7 @@ This works regardless of the auto-sync setting."
   (when (and org-directory
              (file-directory-p org-directory)
              (not my/org-sync-in-progress))  ;; Prevent race conditions
-    (let ((default-directory org-directory))
-      (when (file-exists-p ".git")
-        (condition-case err
-            (progn
-              ;; Set sync indicator and warning
-              (my/org-sync-set-indicator t)
-              (my/org-sync-message "⚠️  MANUAL SYNC IN PROGRESS - Don't quit Emacs!" t)
-              
-              ;; Step 1: Pull latest changes first (with error checking)
-              (let ((pull-result (shell-command "git pull origin main > /dev/null 2>&1")))
-                (unless (zerop pull-result)
-                  (my/org-sync-message "⚠️  Git pull had issues, continuing with local changes" t)))
-              
-              ;; Step 2: Add all local changes
-              (shell-command "git add -A")
-              
-              ;; Step 3: Check if there are changes to commit
-              (let ((status (shell-command-to-string "git status --porcelain")))
-                (if (not (string-empty-p (string-trim status)))
-                    (progn
-                      ;; Step 4: Commit with timestamp (secure from injection attacks)
-                      (let ((commit-msg (format "Manual sync: %s" 
-                                                (format-time-string "%Y-%m-%d %H:%M:%S"))))
-                        ;; Use shell-quote-argument to prevent command injection
-                        (shell-command (format "git commit -m %s" (shell-quote-argument commit-msg)))
-                        ;; Step 5: Push to remote (with error checking)
-                        (let ((push-result (shell-command "git push origin main > /dev/null 2>&1")))
-                          (if (zerop push-result)
-                              (my/org-sync-message "✅ Manual sync completed (pull + commit + push)")
-                            (my/org-sync-message "⚠️  Push failed, changes saved locally" t)))
-                        (setq my/org-last-sync-time (float-time))))
-                  ;; No local changes, but we still pulled
-                  (progn
-                    (my/org-sync-message "✅ Manual sync completed (pull only)")
-                    (setq my/org-last-sync-time (float-time)))))
-              
-              ;; Clear sync indicator
-              (my/org-sync-set-indicator nil))
-          (error
-           ;; Clear indicator on error too
-           (my/org-sync-set-indicator nil)
-           (my/org-sync-message (format "❌ Manual sync failed: %s" (error-message-string err)) t)))))))
+    (my/org-git-sync-impl "Manual sync")))
 
 ;; Variable to track active sync timer (prevents memory leaks)
 (defvar my/org-sync-timer nil
@@ -175,13 +152,7 @@ This works regardless of the auto-sync setting."
   (message "Org auto-sync %s" 
            (if my/org-auto-sync-enabled "ENABLED" "DISABLED")))
 
-;; Simplified git keybindings - C-c g prefix for org-specific commands
-(global-set-key (kbd "C-c g g") #'my/magit-org-status)     ;; Git status for org directory  
-(global-set-key (kbd "C-c g s") #'my/org-sync-now)         ;; Manual sync
-(global-set-key (kbd "C-c g t") #'my/org-toggle-auto-sync) ;; Toggle auto-sync
-
-;; Keep standard magit keybinding for general use
-(global-set-key (kbd "C-x g") #'magit-status)              ;; Standard magit (prompts for repo)
+;; Keybindings are now centralized in keybindings.el
 
 ;; Auto-save-sync is DISABLED by default - use C-c g t to enable if needed
 ;; (with-eval-after-load 'org

@@ -1,4 +1,15 @@
-;;; reading-tracker.el --- Reading progress tracking and dashboard -*- lexical-binding: t; -*-
+;;; reading-tracker.el --- Personal reading progress tracker -*- lexical-binding: t; -*-
+
+;; Version: 1.0
+;; Author: arttusii  
+;; Description: Track reading progress with goals and statistics
+;;
+;; Key Functions:
+;;   reading-tracker-add-book    - Add new book to tracker
+;;   reading-tracker-log-pages   - Log reading progress
+;;   reading-tracker-view-stats  - View reading statistics
+;;
+;; Data Storage: Uses org-persist for reliable data management
 
 ;; ============================================================================
 ;; DEPENDENCIES
@@ -133,22 +144,6 @@ Returns nil if no valid dates or if just started."
                  (avg (/ pages-read (float days-elapsed))))
             (if (> avg 0.1) avg nil))  ; Return nil for very small averages
         (error nil)))))
-
-;; Debug helper at a book heading
-(defun my/org-reading-dump ()
-  "Echo detected planning and days-left for the current book heading.
-Useful for debugging planning time detection."
-  (interactive)
-  (save-excursion
-    (org-back-to-heading t)
-    (let* ((el (org-element-at-point))
-           (dl (and (org-element-property :deadline el)
-                    (org-element-property :raw-value (org-element-property :deadline el))))
-           (sc (and (org-element-property :scheduled el)
-                    (org-element-property :raw-value (org-element-property :scheduled el))))
-           (days (my/org--days-left-at-point))
-           (avg-ppd (my/org--average-pages-per-day-at-point)))
-      (message "deadline=%S scheduled=%S => days-left=%S avg-pages/day=%S" dl sc days avg-ppd))))
 
 ;; ============================================================================
 ;; BOOK MANAGEMENT (CRUD OPERATIONS)
@@ -311,14 +306,6 @@ Empty date clears the deadline. Uses Org's date reading interface."
 ;; KEYBINDINGS
 ;; ============================================================================
 
-;; Reading tracker keybindings (C-c r prefix)
-(global-set-key (kbd "C-c r o") #'my/org-reading-open)              ;; Open reading.org
-(global-set-key (kbd "C-c r b") #'my/org-reading-open-books)        ;; Open books.org
-(global-set-key (kbd "C-c r n") #'my/org-reading-open-book-notes)   ;; Open specific book notes
-(global-set-key (kbd "C-c r a") #'my/org-reading-add-book)          ;; Add a book
-(global-set-key (kbd "C-c r u") #'my/org-reading-set-current-page)  ;; Update current page
-(global-set-key (kbd "C-c r c") #'my/org-reading-complete-book)     ;; Complete a book
-(global-set-key (kbd "C-c r d") #'my/org-reading-delete-book)       ;; Delete a book
-(global-set-key (kbd "C-c r D") #'my/org-reading-set-deadline)      ;; Change deadline
+;; Keybindings are now centralized in keybindings.el
 
 (provide 'reading-tracker)

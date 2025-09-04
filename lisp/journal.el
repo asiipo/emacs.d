@@ -86,8 +86,7 @@ Creates the date node if it doesn't exist, then shows the entry."
 ;; KEYBINDINGS
 ;; ============================================================================
 
-;; Global journal keybinding
-(global-set-key (kbd "C-c j") #'my/journal-capture-today)
+;; Keybindings are now centralized in keybindings.el
 
 ;; ============================================================================
 ;; NOTES
