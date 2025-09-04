@@ -68,7 +68,8 @@ Creates missing sections and saves the file."
       (save-buffer))))
 
 ;; Bootstrap on load
-(my/org-reading-bootstrap)
+;; PERFORMANCE: Bootstrap is now lazy - only runs when reading functions are first called
+;; (my/org-reading-bootstrap)
 
 ;; ============================================================================
 ;; UTILITY FUNCTIONS
@@ -152,6 +153,7 @@ Returns nil if no valid dates or if just started."
 (defun my/org--collect-reading-headings ()
   "Return an alist of (TITLE . MARKER) for headings with :TOTAL_PAGES: property.
 Collects all book entries that have page count information and are not completed."
+  (my/org-reading-bootstrap)  ;; Lazy bootstrap
   (with-current-buffer (find-file-noselect my/org-reading-file)
     (org-with-wide-buffer
       (goto-char (point-min))
@@ -171,6 +173,7 @@ Collects all book entries that have page count information and are not completed
 Prompts for title, author, pages, and optional deadline. Creates a properly
 formatted book entry with Org properties."
   (interactive)
+  (my/org-reading-bootstrap)  ;; Lazy bootstrap
   (let* ((title   (read-string "Title: "))
          (author  (read-string "Author: "))
          (pages   (read-number "Total pages: " 0))
@@ -257,6 +260,7 @@ and excludes it from future dashboard display."
 (defun my/org-reading-open ()
   "Open the reading tracker file in current window."
   (interactive)
+  (my/org-reading-bootstrap)  ;; Lazy bootstrap
   (find-file my/org-reading-file))
 
 (defun my/org-reading-open-books ()

@@ -27,22 +27,26 @@ Returns list of (FILE-NAME HEADING DURATION-MINUTES DURATION-STR) for display."
     (dolist (file org-files)
       (when (and (file-exists-p file) (file-readable-p file))
         (condition-case nil
-          (with-current-buffer (find-file-noselect file)
-            (save-excursion
-              (goto-char (point-min))
-              (while (re-search-forward "^[ \t]*CLOCK: \\[\\([^]]+\\)\\]--\\[\\([^]]+\\)\\] =>[ \t]+\\([0-9:]+\\)" nil t)
-                (let* ((start-time (match-string 1))
-                       (end-time (match-string 2))
-                       (duration (match-string 3))
-                       (entry-date (when (>= (length start-time) 10)
-                                     (substring start-time 0 10)))) ; Extract YYYY-MM-DD safely
-                  (when (and entry-date (string= entry-date today-date))
-                    (save-excursion
-                      (org-back-to-heading t)
-                      (let* ((heading (nth 4 (org-heading-components)))
-                             (file-name (file-name-nondirectory file))
-                             (duration-mins (time-dashboard--parse-duration duration)))
-                        (push (list file-name heading duration-mins duration) clock-entries))))))))
+          ;; PERFORMANCE: Use temp buffer instead of persistent buffer
+          (with-temp-buffer
+            (insert-file-contents file)
+            (goto-char (point-min))
+            (while (re-search-forward "^[ \t]*CLOCK: \\[\\([^]]+\\)\\]--\\[\\([^]]+\\)\\] =>[ \t]+\\([0-9:]+\\)" nil t)
+              (let* ((start-time (match-string 1))
+                     (end-time (match-string 2))
+                     (duration (match-string 3))
+                     (entry-date (when (>= (length start-time) 10)
+                                   (substring start-time 0 10)))) ; Extract YYYY-MM-DD safely
+                (when (and entry-date (string= entry-date today-date))
+                  (save-excursion
+                    ;; Find the heading for this clock entry
+                    (let ((heading-pos (re-search-backward "^\\*+ " nil t)))
+                      (when heading-pos
+                        (goto-char heading-pos)
+                        (let* ((heading (nth 4 (org-heading-components)))
+                               (file-name (file-name-nondirectory file))
+                               (duration-mins (time-dashboard--parse-duration duration)))
+                          (push (list file-name heading duration-mins duration) clock-entries)))))))))
           (error nil)))) ; Skip files with errors
     
     ;; Sort by file name first, then by duration (descending) within each file

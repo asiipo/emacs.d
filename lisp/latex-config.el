@@ -17,8 +17,9 @@
 ;; Use crisp SVG images instead of blurry PNGs for better quality
 (setq org-preview-latex-default-process 'dvisvgm)
 
-;; Auto-render LaTeX fragments when opening Org files
-(setq org-startup-with-latex-preview t)
+;; PERFORMANCE: LaTeX preview on-demand only (use C-c C-x C-l to toggle)
+;; Auto-preview disabled to prevent startup slowdown when loading many org files
+(setq org-startup-with-latex-preview nil)
 
 ;; Note: LaTeX paths are now handled by path-utils.el
 
