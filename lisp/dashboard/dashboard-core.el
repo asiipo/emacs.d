@@ -43,15 +43,15 @@
    (t
     (format "⚡ Loaded in %.2f seconds" dashboard--startup-time))))
 
-;; Calculate startup time when this module loads and add hook for updates
+;; Calculate startup time when this module loads (only once)
 (dashboard--calculate-startup-time)
 
-;; Recalculate on refresh to get the most accurate timing
-(defun dashboard--update-startup-time ()
-  "Update startup time calculation for dashboard refresh."
-  (dashboard--calculate-startup-time))
-
-(add-hook 'dashboard-refresh-hook 'dashboard--update-startup-time)
+;; Don't recalculate startup time on refresh - keep the original time
+;; (defun dashboard--update-startup-time ()
+;;   "Update startup time calculation for dashboard refresh."
+;;   (dashboard--calculate-startup-time))
+;; 
+;; (add-hook 'dashboard-refresh-hook 'dashboard--update-startup-time)
 
 ;; ============================================================================
 ;; DASHBOARD MODE
