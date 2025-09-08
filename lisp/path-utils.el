@@ -43,6 +43,7 @@ PATHS should be a list of directory paths to add."
    ((eq system-type 'gnu/linux)
     (my/add-to-exec-path 
      '("/usr/local/bin"
+       "/usr/bin"
        "/usr/texbin")))))
 
 ;; Initialize paths on load

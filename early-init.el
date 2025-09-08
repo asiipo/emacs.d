@@ -18,7 +18,7 @@
 
 ;; Start with a larger frame (in character columns/rows)
 (add-to-list 'default-frame-alist '(width . 160))
-(add-to-list 'default-frame-alist '(height . 80))
+(add-to-list 'default-frame-alist '(height . 60))
 
 ;;; early-init.el ends here
 
