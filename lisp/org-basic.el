@@ -206,13 +206,55 @@ Updates both the function and variable approaches for maximum compatibility."
       org-startup-folded 'content
       org-image-actual-width 600)
 
+;; Enable easy templates (e.g., <s TAB for source blocks)
+(require 'org-tempo)
+
+;; Configure Python interpreter for Org Babel (cross-platform)
+;; Note: Org Babel's "auto" detection usually works well, but we provide
+;; explicit configuration for edge cases and better cross-platform support
+
+(defun my/find-python-executable ()
+  "Find the best Python executable across different platforms."
+  (cond
+   ;; macOS - Anaconda installation
+   ((and (eq system-type 'darwin)
+         (file-executable-p "/opt/anaconda3/bin/python3"))
+    "/opt/anaconda3/bin/python3")
+   
+   ;; WSL/Linux - Check common locations  
+   ((memq system-type '(gnu/linux berkeley-unix))
+    (or (executable-find "python3")
+        (executable-find "python")
+        "/usr/bin/python3"))
+   
+   ;; Windows - Check Anaconda and system Python
+   ((eq system-type 'windows-nt)
+    (or (executable-find "python.exe")
+        "python.exe"))
+   
+   ;; Fallback - use system PATH
+   (t (or (executable-find "python3")
+          (executable-find "python") 
+          "python3"))))
+
+;; Set Python interpreter with fallback (only if auto-detection might fail)
+(unless (executable-find "python3")
+  ;; Only override if python3 is not in PATH (e.g., some Windows/WSL setups)
+  (let ((python-exec (my/find-python-executable)))
+    (setq org-babel-python-command python-exec
+          python-shell-interpreter python-exec)))
+
+;; Configure Fortran compiler (using gfortran)
+(setq org-babel-fortran-compiler "gfortran")
+
 ;; Source code evaluation (see Org Mode Guide section 14)
 (setq org-confirm-babel-evaluate nil)
 (org-babel-do-load-languages
  'org-babel-load-languages
  '((emacs-lisp . t)
    (python . t)
-   (shell . t)))
+   (shell . t)
+   (fortran . t)))
 
 ;; Stable links for reliable references (see Org Mode Guide section 4)
 (require 'org-id)
