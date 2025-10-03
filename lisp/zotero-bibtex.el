@@ -53,7 +53,7 @@ If set, this file will be copied when Zotero connection fails.
 Example: \"~/Dropbox/zotero-export.bib\" or \"/mnt/c/Users/YourName/zotero.bib\"")
 
 ;; Set this to your manually downloaded bibliography file location
-(setq my/zotero-manual-bib-source "~/org/resources/roam/My Library.biblatex")
+(setq my/zotero-manual-bib-source "~/org/resources/roam/My Library.bib")
 
 (defun my/zotero-bib-file ()
   "Return path to Zotero bibliography cache file."
@@ -137,7 +137,7 @@ Uses my/zotero-manual-bib-source if set."
     (progn
       (message "✗ No manual bibliography source configured")
       (message "  Set my/zotero-manual-bib-source to a file path, e.g.:")
-      (message "  (setq my/zotero-manual-bib-source \"~/org/roam/My Library.biblatex\")")
+      (message "  (setq my/zotero-manual-bib-source \"~/org/roam/My Library.bib\")")
       nil)))
 
 ;; ============================================================================
