@@ -52,4 +52,14 @@
      (message "Warning: Failed to install jinx: %s" (error-message-string err))
      (message "Please install enchant library first: brew install enchant"))))
 
+;; Ensure org-roam-bibtex is installed for bibliography management
+(unless (package-installed-p 'org-roam-bibtex)
+  (condition-case err
+      (progn
+        (message "Installing org-roam-bibtex...")
+        (package-install 'org-roam-bibtex)
+        (message "Org-roam-bibtex installed successfully"))
+    (error 
+     (message "Warning: Failed to install org-roam-bibtex: %s" (error-message-string err)))))
+
 (provide 'packages) 

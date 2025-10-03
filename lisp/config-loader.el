@@ -31,6 +31,7 @@
     org-basic            ;; PARA structure, agenda, refile, archive
     org-capture-config   ;; Capture templates and inbox workflow
     org-agenda-config    ;; Agenda display and behavior
+    org-roam-config      ;; Org-roam networked note-taking
     
     ;; === SPECIALIZED FEATURES ===  
     reading-tracker      ;; Reading progress tracking
@@ -38,6 +39,7 @@
     welcome             ;; Startup dashboard and reading dashboard
     
     ;; === EXTERNAL INTEGRATIONS ===
+    zotero-bibtex       ;; Zotero Better BibTeX integration
     magit-config        ;; Git integration
     spell-checking      ;; Modern spell checking with Jinx
     latex-config        ;; LaTeX editing and preview

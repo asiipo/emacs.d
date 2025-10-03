@@ -31,6 +31,14 @@
 (global-set-key (kbd "C-c r D") #'my/org-reading-set-deadline)
 
 ;; ============================================================================
+;; ZOTERO/BIBTEX KEYBINDINGS
+;; ============================================================================
+
+(global-set-key (kbd "C-c z r") #'my/zotero-refresh)           ;; Refresh Zotero library cache
+(global-set-key (kbd "C-c z t") #'my/zotero-test-connection)   ;; Test connection
+(global-set-key (kbd "C-c z i") #'orb-insert-link)             ;; Insert bibliography link
+
+;; ============================================================================
 ;; GIT/MAGIT KEYBINDINGS
 ;; ============================================================================
 

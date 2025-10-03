@@ -5,9 +5,24 @@
 ;; Description: Track reading progress with goals and statistics
 ;;
 ;; Key Functions:
-;;   reading-tracker-add-book    - Add new book to tracker
-;;   reading-tracker-log-pages   - Log reading progress
-;;   reading-tracker-view-stats  - View reading statistics
+;;   my/org-reading-add-book      - Add new book to tracker
+;;   my/org-reading-set-current-page  - Log reading progress
+;;   my/org-reading-view-stats    - View reading statistics
+;;
+;; Data Storage: Uses org-persist for reliable data management
+
+;; ============================================================================
+;; DEPENDENCIES
+;; ============================================================================el --- Personal reading progress tracker -*- lexical-binding: t; -*-
+
+;; Version: 1.0
+;; Author: arttusii  
+;; Description: Track reading progress with goals and statistics
+;;
+;; Key Functions:
+;;   my/org-reading-add-book      - Add new book to tracker
+;;   my/org-reading-set-current-page  - Log reading progress
+;;   my/org-reading-view-stats    - View reading statistics
 ;;
 ;; Data Storage: Uses org-persist for reliable data management
 
@@ -28,10 +43,6 @@
 (defvar my/org-reading-file (expand-file-name "areas/reading.org" org-directory)
   "Path to the reading tracker file in the Areas directory.")
 
-;; Path to book notes file
-(defvar my/org-books-file (expand-file-name "resources/books.org" org-directory)
-  "Path to the book notes file in the Resources directory.")
-
 ;; ============================================================================
 ;; FILE BOOTSTRAPPING
 ;; ============================================================================
@@ -44,20 +55,10 @@ Ensures the file has the basic structure needed for reading tracking."
       (insert "#+TITLE: Reading\n\n"
               "* Books\n"))))
 
-(defun my/org--ensure-books-file ()
-  "Create ~/org/resources/books.org with basic structure if missing.
-Ensures the file exists for book notes and reviews."
-  (unless (file-exists-p my/org-books-file)
-    (with-temp-file my/org-books-file
-      (insert "#+TITLE: Book Notes & Reviews\n"
-              "#+CATEGORY: Resource\n\n"
-              "This file contains detailed notes and reviews for books.\n\n"))))
-
 (defun my/org-reading-bootstrap ()
   "Ensure reading file exists and has Books heading.
 Creates missing sections and saves the file."
   (my/org--ensure-reading-file)
-  (my/org--ensure-books-file)
   (with-current-buffer (find-file-noselect my/org-reading-file)
     (org-with-wide-buffer
       ;; Ensure Books section exists
@@ -111,18 +112,9 @@ Returns Emacs time value or nil if no planning found."
        (when (re-search-forward "^DEADLINE: *\\(<[^>]+>\\)" end t)
          (org-time-string-to-time (match-string 1)))))))
 
-(defun my/org--create-book-notes-entry (title author)
-  "Create a book entry in books.org with Notes and Review sections.
-Creates a structured entry for detailed note-taking and review."
-  (with-current-buffer (find-file-noselect my/org-books-file)
-    (org-with-wide-buffer
-      (goto-char (point-max))
-      (unless (bolp) (insert "\n"))
-      (insert (format "* %s\n:PROPERTIES:\n:AUTHOR: %s\n:CREATED: [%s]\n:END:\n\n"
-                      title author (format-time-string "%Y-%m-%d %a")))
-      (insert "** Notes\n\n")
-      (insert "** Review\n\n")
-      (save-buffer))))
+;; ============================================================================
+;; CORE READING TRACKER FUNCTIONS
+;; ============================================================================
 
 (defun my/org--days-left-at-point ()
   "Calculate inclusive days left to the planning date; never 0 (today => 1).
@@ -171,7 +163,10 @@ Collects all book entries that have page count information and are not completed
 (defun my/org-reading-add-book ()
   "Add a new book under * Books with properties and optional deadline.
 Prompts for title, author, pages, and optional deadline. Creates a properly
-formatted book entry with Org properties."
+formatted book entry with Org properties.
+
+TIP: Create detailed book notes separately using org-roam (C-c n f).
+     You can link them by adding :ROAM_NOTES: [[id:xxx][Title]] property."
   (interactive)
   (my/org-reading-bootstrap)  ;; Lazy bootstrap
   (let* ((title   (read-string "Title: "))
@@ -195,15 +190,13 @@ formatted book entry with Org properties."
         (org-back-to-heading t)            ;; Be on * Books
         (org-end-of-subtree t t)           ;; Go to end of Books subtree
         (unless (bolp) (insert "\n"))      ;; Ensure new line before inserting
-        ;; Insert heading + drawer in one go so the drawer stays attached to THIS heading
+        ;; Insert heading + drawer
         (insert (format "%s %s\n:PROPERTIES:\n:AUTHOR: %s\n:TOTAL_PAGES: %d\n:CURRENT_PAGE: 0\n:START_DATE: [%s]\n:END:\n"
                         my/books-child-stars title author pages (format-time-string "%Y-%m-%d %a")))
         (when deadline
           (insert (format "DEADLINE: %s\n" deadline)))
         (save-buffer)))
-    ;; Also create entry in books.org for notes
-    (my/org--create-book-notes-entry title author)
-    (message "Added book: %s (tracking in reading.org, notes in books.org)" title)))
+    (message "Added book: %s. Use C-c n f to create detailed notes in org-roam." title)))
 
 (defun my/org-reading-set-current-page ()
   "Set CURRENT_PAGE for a chosen book.
@@ -263,24 +256,6 @@ and excludes it from future dashboard display."
   (my/org-reading-bootstrap)  ;; Lazy bootstrap
   (find-file my/org-reading-file))
 
-(defun my/org-reading-open-books ()
-  "Open the book notes file in current window."
-  (interactive)
-  (find-file my/org-books-file))
-
-(defun my/org-reading-open-book-notes ()
-  "Open notes for a chosen book in books.org.
-Prompts for book selection and jumps to its notes section."
-  (interactive)
-  (let* ((items (my/org--collect-reading-headings))
-         (title (completing-read "Open notes for book: " (mapcar #'car items) nil t)))
-    (find-file my/org-books-file)
-    (goto-char (point-min))
-    (if (re-search-forward (format "^\\* %s\\b" (regexp-quote title)) nil t)
-        (progn
-          (org-show-subtree)
-          (message "Opened notes for: %s" title))
-            (message "Notes not found for: %s" title))))
 ;; ============================================================================
 ;; DEADLINE MANAGEMENT
 ;; ============================================================================
@@ -307,9 +282,32 @@ Empty date clears the deadline. Uses Org's date reading interface."
                (format "Deadline for %s set to %s" title date)))))
 
 ;; ============================================================================
+;; ORG-ROAM INTEGRATION
+;; ============================================================================
+
+(defun my/org-reading-open-books ()
+  "Open a book note from org-roam books directory.
+Filters to show only nodes with :book: tag or in books/ directory."
+  (interactive)
+  (require 'org-roam)
+  (let* ((node (org-roam-node-read
+                nil
+                (lambda (node)
+                  (or
+                   ;; Check if file is in books/ subdirectory
+                   (string-match-p "/books/" (org-roam-node-file node))
+                   ;; Or check if node has :book: tag
+                   (member "book" (org-roam-node-tags node))))))
+         (file (org-roam-node-file node)))
+    (if file
+        (find-file file)
+      (message "No book selected"))))
+
+;; ============================================================================
 ;; KEYBINDINGS
 ;; ============================================================================
 
 ;; Keybindings are now centralized in keybindings.el
 
 (provide 'reading-tracker)
+;;; reading-tracker.el ends here
