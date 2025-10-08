@@ -18,6 +18,7 @@
 (require 'org)
 (require 'org-datetree)
 (require 'subr-x)
+(require 'cl-lib)
 
 ;; ============================================================================
 ;; CONFIGURATION
@@ -32,20 +33,15 @@
 ;; ============================================================================
 
 (defun my/journal--ensure-file ()
-  "Create the journal file with a title if it doesn't exist.
-Ensures the journal file exists with proper Org structure."
-  (unless (file-exists-p my/org-journal-file)
+  "Create the journal file with proper structure if it doesn't exist."
+  (when (not (file-exists-p my/org-journal-file))
+    ;; Ensure directory exists
+    (let ((journal-dir (file-name-directory my/org-journal-file)))
+      (unless (file-directory-p journal-dir)
+        (make-directory journal-dir t)))
+    ;; Create file with title
     (with-temp-file my/org-journal-file
-      (insert "#+TITLE: Journal\n")))
-  ;; Add title to existing file if missing
-  (when (file-exists-p my/org-journal-file)
-    (with-temp-buffer
-      (insert-file-contents my/org-journal-file)
-      (goto-char (point-min))
-      (unless (looking-at "^#\\+TITLE:")
-        (goto-char (point-min))
-        (insert "#+TITLE: Journal\n")
-        (write-file my/org-journal-file)))))
+      (insert "#+TITLE: Journal\n"))))
 
 ;; ============================================================================
 ;; CAPTURE TEMPLATE INTEGRATION
@@ -55,12 +51,14 @@ Ensures the journal file exists with proper Org structure."
 ;; Based on Org Mode Guide section 9.1
 (with-eval-after-load 'org
   (my/journal--ensure-file)
-  (let ((tpl '("j" "Journal (today)" entry
-               (file+datetree my/org-journal-file)
-               "* %<%H:%M> %?\n")))
-    (if (boundp 'org-capture-templates)
-        (add-to-list 'org-capture-templates tpl t)
-      (setq org-capture-templates (list tpl)))))
+  (let ((journal-template '("j" "Journal (today)" entry
+                           (file+datetree my/org-journal-file)
+                           "* %<%H:%M> %?\n")))
+    ;; Avoid duplicate templates
+    (setq org-capture-templates 
+          (cons journal-template 
+                (cl-remove-if (lambda (tpl) (equal (car tpl) "j")) 
+                              (or org-capture-templates '()))))))
 
 ;; ============================================================================
 ;; JOURNAL FUNCTIONS
@@ -81,6 +79,25 @@ Creates the date node if it doesn't exist, then shows the entry."
   (find-file my/org-journal-file)
   (org-datetree-find-date-create (calendar-current-date))
   (org-show-entry))
+
+(defun my/journal-open-file ()
+  "Open the journal file."
+  (interactive)
+  (my/journal--ensure-file)
+  (find-file my/org-journal-file))
+
+(defun my/journal-search ()
+  "Search through journal entries."
+  (interactive)
+  (my/journal--ensure-file)
+  (let ((default-directory (file-name-directory my/org-journal-file)))
+    (if (fboundp 'consult-ripgrep)
+        (consult-ripgrep default-directory)
+      (if (fboundp 'rg)
+          (rg (read-string "Search journal: ") "*.org" default-directory)
+        (grep (format "grep -n \"%s\" %s" 
+                     (read-string "Search journal: ") 
+                     my/org-journal-file))))))
 
 ;; ============================================================================
 ;; KEYBINDINGS

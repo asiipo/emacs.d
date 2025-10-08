@@ -1,39 +1,44 @@
-* Overview
+#+title: Emacs Productivity Notes
+#+author: arttusii
 
-This repository contains a personal Emacs configuration designed for academic and professional productivity workflows.
+* Why this exists
+- Minimal reminder of how my ~/.emacs.d is wired.
+- Modules live under =lisp/= and load via =config-loader.el= in this order:
+  1. =path-utils= → discovers binaries (latex, git, etc.)
+  2. =core-init= → GC, UI defaults, PDF Tools
+  3. Org stack: =org-basic=, =org-capture-config=, =org-agenda-config=, =org-roam-config=
+  4. Extras: =reading-tracker=, =journal=, =dashboard=
+  5. Integrations: =zotero-bibtex=, =magit-config=, =spell-checking=, =latex-config=
+  6. Final glue: =keybindings=
 
-The system provides comprehensive support for note-taking, task management, project organization, reading tracking, and bilingual writing with automatic spell checking. All organizational data is maintained in Org mode with automatic Git synchronization for seamless multi-device workflows.
+* Setup checklist (macOS)
+- Clone repo into =~/.emacs.d/=
+- Ensure =~/org/= exists with PARA folders (projects, areas, resources, archive)
+- Install deps once:
+  #+begin_src sh
+  brew install enchant pkg-config
+  #+end_src
+- First Emacs launch installs packages automatically
 
-* Quick Setup
+* Daily commands (memorize)
+- Agenda / capture: =C-c a=, =C-c c=, inbox =C-c i=
+- Refresh agenda: =C-c A=, refile current =C-c C-w=
+- Org-roam basics: =C-c n f=, =C-c n c=, =C-c n i=, =C-c n o=
+- Journal capture: =C-c j=
+- Reading tracker: =C-c r o/a/u/c/d=
+- Zotero helpers: =C-c z i/c/o=
+- Git: =C-c g g/s/t= (status / sync / toggle auto-sync), quick Magit =C-x g=
+- Open dirs: =C-c d= (org), =C-c e= (config)
+- Spell: =M-$= correct, =C-M-$= switch lang
+- Diagnostics: =C-c ? d= (diagnose), =C-c ? t= (timing)
 
-** System Dependencies
+* Maintenance notes
+- =my/diagnose-config= buffers startup status, slow modules, missing dirs
+- Dashboard shows the same info plus reading progress
+- Use =my/reload-config-module= to hot reload a single module when hacking
 
-Before using this configuration, install the required system dependencies:
-
-*** macOS (using Homebrew)
-#+BEGIN_SRC bash
-# Required for spell-checking with jinx
-brew install enchant
-
-# Required for native module compilation
-brew install pkg-config
-#+END_SRC
-
-** First Run
-
-1. Clone this repository to =~/.emacs.d/=
-2. Install system dependencies (see above)
-3. Start Emacs - packages will be automatically installed on first run
-
-** Directory Structure
-
-Create the following directory structure for optimal workflow:
-
-#+BEGIN_EXAMPLE
-~/org/
-├── inbox.org           # Capture everything here
-├── projects/           # Active projects with defined outcomes
-├── areas/              # Ongoing responsibilities to maintain
-├── resources/          # Reference materials and knowledge base
-└── archive/            # Completed items and inactive projects
-#+END_EXAMPLE
+* Short reference
+- Org files auto-created if missing (see =org-basic.el=)
+- Capture templates write new project/area/resource files with metadata
+- PDF viewing handled by PDF Tools, Jinx handles spell check (en_US/fi)
+- Running =emacs --batch --eval '(load-file "init.el")'= is the quick smoke test

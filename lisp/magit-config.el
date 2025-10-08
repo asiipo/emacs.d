@@ -1,5 +1,18 @@
 ;;; magit-config.el --- Magit setup -*- lexical-binding: t; -*-
 
+;;; Commentary:
+;; Magit configuration with org-directory integration and automatic syncing.
+
+(require 'subr-x)
+
+;; ============================================================================
+;; MAGIT BASIC CONFIGURATION
+;; ============================================================================
+
+;; Use same window behavior for popups (minimal window churn)
+(with-eval-after-load 'magit
+  (setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+
 (defun my/magit-org-status ()
   "Open magit-status for the org directory specifically."
   (interactive)
@@ -9,11 +22,6 @@
             (magit-status)
           (message "Org directory is not a git repository")))
     (message "Org directory not found")))
-
-;; Git keybindings will be set at the end of file
-
-;; Use same window behavior for popups if you prefer minimal window churn
-(setq magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
 
 ;; ============================================================================
 ;; AUTO-SYNC ORG DIRECTORY
@@ -25,7 +33,7 @@
 (defvar my/org-last-sync-time 0
   "Timestamp of last sync to prevent too frequent commits.")
 
-(defvar my/org-sync-delay 60  ;; Increase to 60 seconds for less noise
+(defvar my/org-sync-delay 60
   "Minimum seconds between auto-sync operations.")
 
 (defvar my/org-sync-in-progress nil
@@ -41,6 +49,15 @@
   (if warning
       (message (propertize msg 'face '(:foreground "orange" :weight bold)))
     (message (propertize msg 'face '(:foreground "forest green" :weight bold)))))
+
+(defun my/org-git-command (command &optional silent)
+  "Execute git command in org directory. Return t if successful."
+  (let ((default-directory org-directory))
+    (when (file-exists-p ".git")
+      (let ((cmd (if silent
+                     (format "%s > /dev/null 2>&1" command)
+                   command)))
+        (zerop (shell-command cmd))))))
 
 (defun my/org-git-auto-pull ()
   "Automatically pull latest changes from remote (no commit/push).
@@ -58,10 +75,9 @@ Only runs if enough time has passed since last sync and no other sync is running
               (my/org-sync-message "⬇️  Pulling latest changes..." t)
               
               ;; Only pull - no commit or push
-              (let ((pull-result (shell-command "git pull origin main > /dev/null 2>&1")))
-                (if (zerop pull-result)
-                    (my/org-sync-message "✅ Pulled latest changes from remote")
-                  (my/org-sync-message "⚠️  Pull had issues, check manually" t)))
+              (if (my/org-git-command "git pull origin main" t)
+                  (my/org-sync-message "✅ Pulled latest changes from remote")
+                (my/org-sync-message "⚠️  Pull had issues, check manually" t))
               
               (setq my/org-last-sync-time (float-time))
               (my/org-sync-set-indicator nil))
@@ -81,11 +97,10 @@ Only runs if enough time has passed since last sync and no other sync is running
               (my/org-sync-message "⚠️  FULL SYNC - Don't quit Emacs!" t)
               
               ;; Step 1: Pull latest changes
-              (let ((pull-result (shell-command "git pull origin main > /dev/null 2>&1")))
-                (unless (zerop pull-result)
-                  (my/org-sync-message "⚠️  Pull had conflicts, resolve manually" t)
-                  (my/org-sync-set-indicator nil)
-                  (error "Pull failed")))
+              (unless (my/org-git-command "git pull origin main" t)
+                (my/org-sync-message "⚠️  Pull had conflicts, resolve manually" t)
+                (my/org-sync-set-indicator nil)
+                (error "Pull failed"))
               
               ;; Step 2: Add all changes
               (shell-command "git add -A")
@@ -99,10 +114,9 @@ Only runs if enough time has passed since last sync and no other sync is running
                         (shell-command (format "git commit -m %s" (shell-quote-argument commit-msg)))
                         
                         ;; Step 4: Push to remote
-                        (let ((push-result (shell-command "git push origin main > /dev/null 2>&1")))
-                          (if (zerop push-result)
-                              (my/org-sync-message "✅ Full sync complete (pull + commit + push)")
-                            (my/org-sync-message "⚠️  Push failed, changes saved locally" t)))))
+                        (if (my/org-git-command "git push origin main" t)
+                            (my/org-sync-message "✅ Full sync complete (pull + commit + push)")
+                          (my/org-sync-message "⚠️  Push failed, changes saved locally" t))))
                   (my/org-sync-message "✅ No local changes to commit")))
               
               (my/org-sync-set-indicator nil))
@@ -116,17 +130,10 @@ Only runs if enough time has passed since last sync and no other sync is running
   (interactive)
   (my/org-git-full-sync))
 
-;; Variable to track active sync timer (prevents memory leaks)
-(defvar my/org-sync-timer nil
-  "Timer object for pending sync operations.")
-
 (defun my/org-setup-auto-sync ()
   "Set up automatic pull on startup (no auto-commit on save)."
-  ;; No after-save-hook - manual sync only via C-c g s
-  ;; Auto-pull happens only on Emacs startup
   (message "Auto-sync configured: Pull on startup only, manual sync with C-c g s"))
 
-;; Toggle auto-pull
 (defun my/org-toggle-auto-sync ()
   "Toggle automatic Git pull on startup for org directory."
   (interactive)
@@ -134,7 +141,9 @@ Only runs if enough time has passed since last sync and no other sync is running
   (message "Org auto-pull on startup %s" 
            (if my/org-auto-sync-enabled "ENABLED" "DISABLED")))
 
-;; Git keybindings - C-c g prefix for org-specific commands
+;; ============================================================================
+;; KEYBINDINGS
+;; ============================================================================
 (global-set-key (kbd "C-c g g") #'my/magit-org-status)     ;; Git status for org directory  
 (global-set-key (kbd "C-c g s") #'my/org-sync-now)         ;; Manual full sync (pull + commit + push)
 (global-set-key (kbd "C-c g t") #'my/org-toggle-auto-sync) ;; Toggle auto-pull on startup
@@ -164,8 +173,9 @@ Only runs if enough time has passed since last sync and no other sync is running
                           (progn
                             (my/org-sync-set-indicator t)
                             (my/org-sync-message "⚠️  STARTUP SYNC - Don't quit Emacs!" t)
-                            (shell-command "git pull origin main > /dev/null 2>&1")
-                            (my/org-sync-message "✅ Org files synced from remote")
+                            (if (my/org-git-command "git pull origin main" t)
+                                (my/org-sync-message "✅ Org files synced from remote")
+                              (my/org-sync-message "⚠️  Startup pull had issues" t))
                             (my/org-sync-set-indicator nil))
                         (error
                          (my/org-sync-set-indicator nil)

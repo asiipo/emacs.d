@@ -1,5 +1,9 @@
 ;;; org-agenda-config.el --- Agenda display and behavior -*- lexical-binding: t; -*-
 
+;;; Commentary:
+;; This module configures Org Agenda with custom commands, display settings,
+;; and keybindings for an efficient task management workflow.
+
 ;; ============================================================================
 ;; AGENDA INITIALIZATION
 ;; ============================================================================
@@ -29,21 +33,28 @@
         org-agenda-todo-ignore-with-date nil     ;; Show todos with dates
         org-agenda-tags-todo-honor-ignore-options t)
 
-  ;; Custom agenda commands (Guide section 10.8)
+  ;; ============================================================================
+  ;; CUSTOM AGENDA COMMANDS
+  ;; ============================================================================
+  
+  ;; Custom agenda views for different workflows
   (setq org-agenda-custom-commands
         '(("d" "Daily agenda and next actions"
            ((agenda "" ((org-agenda-span 1)
-                        (org-agenda-show-all-dates nil)))  ;; Don't show empty days
+                        (org-agenda-show-all-dates nil)))
             (todo "NEXT" ((org-agenda-overriding-header "Next Actions")
-                          (org-agenda-max-entries 10)))     ;; Limit to top 10
+                          (org-agenda-max-entries 10)))
             (todo "WAIT" ((org-agenda-overriding-header "Waiting For")
-                          (org-agenda-max-entries 5)))))    ;; Limit to 5
+                          (org-agenda-max-entries 5)))))
+          
           ("w" "Weekly review"
            ((agenda "" ((org-agenda-span 7)))
             (todo "NEXT" ((org-agenda-overriding-header "All Next Actions")))
             (tags-todo "CATEGORY=\"Project\"" ((org-agenda-overriding-header "All Projects")))))
+          
           ("p" "Projects overview" tags-todo "CATEGORY=\"Project\""
            ((org-agenda-overriding-header "All Projects")))
+          
           ("n" "Next actions" todo "NEXT"
            ((org-agenda-overriding-header "Next Actions")))))
   
@@ -51,8 +62,9 @@
   ;; AGENDA KEYBINDINGS
   ;; ============================================================================
   
-  ;; Add keybinding to go to inbox from agenda
-  (define-key org-agenda-mode-map (kbd "i") #'my/goto-inbox))
+  ;; Enhanced agenda keybindings for workflow integration
+  (define-key org-agenda-mode-map (kbd "i") #'my/goto-inbox)
+  (define-key org-agenda-mode-map (kbd "r") #'org-agenda-redo-all))
 
 (provide 'org-agenda-config)
 

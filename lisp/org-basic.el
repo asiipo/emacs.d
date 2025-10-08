@@ -11,6 +11,8 @@
 ;;
 ;; Dependencies: Built-in Org mode packages only
 
+(require 'subr-x)
+
 ;; ============================================================================
 ;; PARA DIRECTORY STRUCTURE
 ;; ============================================================================
@@ -54,16 +56,14 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
     (delete-dups (append (when (file-exists-p inbox) (list inbox)) 
                          projects areas))))
 
-;; Set agenda files to use the dynamic function AND initialize the variable
+;; Set agenda files to use the dynamic function
 (setq org-agenda-files-function #'my/org-agenda-files
-      org-agenda-files (my/org-agenda-files))  ;; Initialize with current files
+      org-agenda-files (my/org-agenda-files))
 
-;; Auto-refresh agenda after capture (simplified - function approach auto-updates)
+;; Auto-refresh agenda after capture
 (with-eval-after-load 'org-capture
   (add-hook 'org-capture-after-finalize-hook 
             (lambda () 
-              ;; Function-based approach automatically includes new files
-              ;; Just refresh agenda view if open
               (when (get-buffer "*Org Agenda*")
                 (with-current-buffer "*Org Agenda*"
                   (org-agenda-redo))))))
@@ -132,12 +132,9 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
   (find-file (expand-file-name "inbox.org" org-directory)))
 
 (defun my/refresh-agenda ()
-  "Refresh the agenda view to include any new files.
-Updates both the function and variable approaches for maximum compatibility."
+  "Refresh the agenda view to include any new files."
   (interactive)
-  ;; Update the variable to ensure compatibility with all agenda commands
   (setq org-agenda-files (my/org-agenda-files))
-  ;; Refresh agenda view if open
   (when (get-buffer "*Org Agenda*")
     (with-current-buffer "*Org Agenda*"
       (org-agenda-redo)
@@ -150,9 +147,8 @@ Updates both the function and variable approaches for maximum compatibility."
 ;; Keybindings are now centralized in keybindings.el
 
 ;; ============================================================================
-;; SIMPLIFIED FILE ARCHIVING SYSTEM
+;; PARA-AWARE FILE ARCHIVING SYSTEM
 ;; ============================================================================
-
 
 (defun my/org-archive-file ()
   "Move the current Org file into the appropriate archive subfolder, with confirmation."
@@ -180,9 +176,7 @@ Updates both the function and variable approaches for maximum compatibility."
                           (file-name-extension file-name t))
                   archive-dir)))
     (when (y-or-n-p (format "Archive this file to %s? " dest))
-      ;; Create archive directory if needed
       (make-directory archive-dir t)
-      ;; Save and move file
       (save-buffer)
       (kill-buffer (current-buffer))
       (rename-file src dest t)
@@ -194,6 +188,21 @@ Updates both the function and variable approaches for maximum compatibility."
   (define-key org-mode-map (kbd "C-c C-x a") #'my/org-archive-file))
 (with-eval-after-load 'org-agenda
   (define-key org-agenda-mode-map (kbd "C-c C-x a") #'my/org-agenda-archive-file))
+
+(defun my/org-agenda-archive-file ()
+  "Archive the file associated with the agenda item at point."
+  (interactive)
+  (require 'org-agenda)
+  (org-agenda-check-type t 'agenda 'todo 'tags 'search)
+  (let* ((marker (or (org-get-at-bol 'org-hd-marker)
+                     (org-agenda-error)))
+         (buffer (marker-buffer marker)))
+    (with-current-buffer buffer
+      (save-excursion
+        (goto-char marker)
+        (my/org-archive-file))))
+  (org-agenda-redo))
+
 
 ;; ============================================================================
 ;; ORG APPEARANCE AND BEHAVIOR
@@ -210,36 +219,23 @@ Updates both the function and variable approaches for maximum compatibility."
 (require 'org-tempo)
 
 ;; Configure Python interpreter for Org Babel (cross-platform)
-;; Note: Org Babel's "auto" detection usually works well, but we provide
-;; explicit configuration for edge cases and better cross-platform support
-
 (defun my/find-python-executable ()
   "Find the best Python executable across different platforms."
-  (cond
-   ;; macOS - Anaconda installation
-   ((and (eq system-type 'darwin)
-         (file-executable-p "/opt/anaconda3/bin/python3"))
-    "/opt/anaconda3/bin/python3")
-   
-   ;; WSL/Linux - Check common locations  
-   ((memq system-type '(gnu/linux berkeley-unix))
-    (or (executable-find "python3")
-        (executable-find "python")
-        "/usr/bin/python3"))
-   
-   ;; Windows - Check Anaconda and system Python
-   ((eq system-type 'windows-nt)
-    (or (executable-find "python.exe")
-        "python.exe"))
-   
-   ;; Fallback - use system PATH
-   (t (or (executable-find "python3")
-          (executable-find "python") 
-          "python3"))))
+  (or 
+   ;; Try standard Python 3 first
+   (executable-find "python3")
+   (executable-find "python")
+   ;; macOS Anaconda
+   (and (eq system-type 'darwin)
+        (file-executable-p "/opt/anaconda3/bin/python3")
+        "/opt/anaconda3/bin/python3")
+   ;; System defaults
+   (cond
+    ((eq system-type 'windows-nt) "python.exe")
+    (t "python3"))))
 
-;; Set Python interpreter with fallback (only if auto-detection might fail)
+;; Set Python interpreter if default detection fails
 (unless (executable-find "python3")
-  ;; Only override if python3 is not in PATH (e.g., some Windows/WSL setups)
   (let ((python-exec (my/find-python-executable)))
     (setq org-babel-python-command python-exec
           python-shell-interpreter python-exec)))

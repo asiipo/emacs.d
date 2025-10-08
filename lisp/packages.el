@@ -1,5 +1,9 @@
 ;;; packages.el --- Minimal package setup -*- lexical-binding: t; -*-
 
+;;; Commentary:
+;; This module initializes the package system and ensures essential packages
+;; are installed for the configuration to work properly.
+
 ;; ============================================================================
 ;; PACKAGE SYSTEM INITIALIZATION
 ;; ============================================================================
@@ -21,45 +25,37 @@
 ;; ESSENTIAL PACKAGES
 ;; ============================================================================
 
-;; Ensure Magit is installed for Git integration
-(unless (package-installed-p 'magit)
-  (condition-case err
-      (progn
-        (message "Installing magit...")
-        (package-install 'magit)
-        (message "Magit installed successfully"))
-    (error 
-     (message "Warning: Failed to install magit: %s" (error-message-string err)))))
+;; Helper function to install packages with error handling
+(defun my/ensure-package-installed (package &optional note)
+  "Ensure PACKAGE is installed, with optional installation NOTE."
+  (unless (package-installed-p package)
+    (condition-case err
+        (progn
+          (message "Installing %s..." package)
+          (package-install package)
+          (message "%s installed successfully" package)
+          (when note (message "Note: %s" note)))
+      (error
+       (message "Warning: Failed to install %s: %s" package (error-message-string err))
+       (when note (message "Note: %s" note))))))
 
-;; Ensure doom-themes is installed (since you're using doom-dracula)
-(unless (package-installed-p 'doom-themes)
-  (condition-case err
-      (progn
-        (message "Installing doom-themes...")
-        (package-install 'doom-themes)
-        (message "Doom-themes installed successfully"))
-    (error 
-     (message "Warning: Failed to install doom-themes: %s" (error-message-string err)))))
+;; Essential packages for the configuration
+(defvar my/essential-packages
+  '((use-package . "Required for module configuration macros")
+    (magit . "Git integration and version control")
+    (doom-themes . "Theme collection including doom-dracula")
+    (jinx . "Modern spell checking (requires: brew install enchant)")
+    (org-roam-bibtex . "Bibliography management for org-roam"))
+  "List of essential packages with descriptions.")
 
-;; Ensure jinx is installed for modern spell checking
-(unless (package-installed-p 'jinx)
-  (condition-case err
-      (progn
-        (message "Installing jinx...")
-        (package-install 'jinx)
-        (message "Jinx installed successfully"))
-    (error 
-     (message "Warning: Failed to install jinx: %s" (error-message-string err))
-     (message "Please install enchant library first: brew install enchant"))))
+;; Install essential packages
+(dolist (pkg-info my/essential-packages)
+  (let ((package (car pkg-info))
+        (note (cdr pkg-info)))
+    (my/ensure-package-installed package note)))
 
-;; Ensure org-roam-bibtex is installed for bibliography management
-(unless (package-installed-p 'org-roam-bibtex)
-  (condition-case err
-      (progn
-        (message "Installing org-roam-bibtex...")
-        (package-install 'org-roam-bibtex)
-        (message "Org-roam-bibtex installed successfully"))
-    (error 
-     (message "Warning: Failed to install org-roam-bibtex: %s" (error-message-string err)))))
+;; Special setup for use-package
+(require 'use-package)
+(setq use-package-always-ensure t)
 
 (provide 'packages) 

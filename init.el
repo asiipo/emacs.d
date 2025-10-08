@@ -7,7 +7,7 @@
 
 ;; Add our lisp directory to load path
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-(add-to-list 'load-path (expand-file-name "lisp/dashboard" user-emacs-directory))
+;; Dashboard is now consolidated in lisp/dashboard.el
 
 ;; Initialize package system and install required packages FIRST
 (require 'packages)

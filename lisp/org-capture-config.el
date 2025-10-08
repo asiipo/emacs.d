@@ -1,5 +1,9 @@
 ;;; org-capture-config.el --- Capture inbox and templates -*- lexical-binding: t; -*-
 
+;;; Commentary:
+;; This module configures org-capture with PARA-method templates for efficient
+;; task and content capture into proper organizational structure.
+
 ;; ============================================================================
 ;; DEPENDENCIES
 ;; ============================================================================
@@ -53,21 +57,21 @@ If the file exists, append -2, -3, etc. until we find an unused name."
 ;; CAPTURE TEMPLATES
 ;; ============================================================================
 
-;; Define capture templates for different types of content
-;; Based on Org Mode Guide section 9.1
+;; PARA-method capture templates for comprehensive content organization
 (setq org-capture-templates
-      `(
-        ;; Task: quick TODO item to inbox
+      `(;; ========== INBOX TEMPLATES ==========
+        
+        ;; Task: Quick TODO item to inbox
         ("t" "Task" entry
          (file ,org-default-notes-file)
          "* TODO %?\nCREATED: %U\n%i\n")
         
-        ;; Note: tagged note to inbox
+        ;; Note: Tagged note to inbox
         ("n" "Note" entry 
          (file ,org-default-notes-file)
          "* %^{Note title} :%^{tags|work|home|research|admin|deep|quick|:}:\nCREATED: %U\n\n%?\n%i\n")
 
-        ;; Scheduled task: task with specific date/time
+        ;; Scheduled task: Task with specific date/time
         ("s" "Scheduled Task" entry
          (file ,org-default-notes-file)
          "* TODO %?\nSCHEDULED: %^T\nCREATED: %U\n%i\n")
@@ -77,12 +81,20 @@ If the file exists, append -2, -3, etc. until we find an unused name."
          (file ,org-default-notes-file)
          "* TODO %?\nDEADLINE: %^T\nCREATED: %U\n%i\n")
 
-        ;; Meeting: meeting notes with scheduled time
+        ;; Meeting: Meeting notes with scheduled time
         ("m" "Meeting" entry
          (file ,org-default-notes-file)
-         "* Meeting: %? :meeting:\nSCHEDULED: %^T\nCREATED: %U\n:PROPERTIES:\n:ATTENDEES: %^{Attendees}\n:END:\n\n** Agenda\n\n** Notes\n\n** Action Items\n")
+         ,(concat "* Meeting: %? :meeting:\n"
+                  "SCHEDULED: %^T\n"
+                  "CREATED: %U\n"
+                  ":PROPERTIES:\n"
+                  ":ATTENDEES: %^{Attendees}\n"
+                  ":END:\n\n"
+                  "** Agenda\n\n** Notes\n\n** Action Items\n"))
         
-        ;; Project: create new project file with template
+        ;; ========== PARA FILE TEMPLATES ==========
+        
+        ;; Project: Create new project file with template
         ("p" "New Project (file)" plain
          (file (lambda ()
                  (let* ((title (read-string "Project title: "))
@@ -92,9 +104,20 @@ If the file exists, append -2, -3, etc. until we find an unused name."
                    (make-directory dir t)
                    (my/capture--set-title title)
                    file)))
-         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Project\n:PROPERTIES:\n:AREA: %^{Area|Research|Teaching|Admin|Personal}\n:STATUS: Active\n:CREATED: %U\n:END:\n\n* Overview\n%?\n\n* Goals\n- [ ] \n\n* Next actions\n- TODO \n\n* Waiting for\n\n* Notes\n")
+         ,(concat "#+TITLE: %(my/capture-pop-title)\n"
+                  "#+CATEGORY: Project\n"
+                  ":PROPERTIES:\n"
+                  ":AREA: %^{Area|Research|Teaching|Admin|Personal}\n"
+                  ":STATUS: Active\n"
+                  ":CREATED: %U\n"
+                  ":END:\n\n"
+                  "* Overview\n%?\n\n"
+                  "* Goals\n- [ ] \n\n"
+                  "* Next actions\n- TODO \n\n"
+                  "* Waiting for\n\n"
+                  "* Notes\n"))
         
-        ;; Area: create new area file with template
+        ;; Area: Create new area file with template
         ("a" "New Area (file)" plain
          (file (lambda ()
                  (let* ((title (read-string "Area name: "))
@@ -104,9 +127,27 @@ If the file exists, append -2, -3, etc. until we find an unused name."
                    (make-directory dir t)
                    (my/capture--set-title title)
                    file)))
-         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Area\n:PROPERTIES:\n:PURPOSE: %^{Purpose of this area}\n:REVIEW: weekly\n:CREATED: %U\n:END:\n\n* Purpose\n%?\n\n* Standards\n- What \"good\" looks like for this area\n- Key metrics or indicators of success\n\n* Current focus\n- TODO Review and maintain standards\n- TODO Plan next steps\n\n* Ongoing maintenance\n- TODO Regular review of this area\n\n* Resources\n- Links, documents, or tools related to this area\n\n* Notes\n")
+         ,(concat "#+TITLE: %(my/capture-pop-title)\n"
+                  "#+CATEGORY: Area\n"
+                  ":PROPERTIES:\n"
+                  ":PURPOSE: %^{Purpose of this area}\n"
+                  ":REVIEW: weekly\n"
+                  ":CREATED: %U\n"
+                  ":END:\n\n"
+                  "* Purpose\n%?\n\n"
+                  "* Standards\n"
+                  "- What \"good\" looks like for this area\n"
+                  "- Key metrics or indicators of success\n\n"
+                  "* Current focus\n"
+                  "- TODO Review and maintain standards\n"
+                  "- TODO Plan next steps\n\n"
+                  "* Ongoing maintenance\n"
+                  "- TODO Regular review of this area\n\n"
+                  "* Resources\n"
+                  "- Links, documents, or tools related to this area\n\n"
+                  "* Notes\n"))
         
-        ;; Resource: create new resource file with template
+        ;; Resource: Create new resource file with template
         ("r" "Resource (file)" plain
          (file (lambda ()
                  (let* ((topic (read-string "Resource topic: "))
@@ -116,8 +157,18 @@ If the file exists, append -2, -3, etc. until we find an unused name."
                    (make-directory dir t)
                    (my/capture--set-title topic)
                    file)))
-         "#+TITLE: %(my/capture-pop-title)\n#+CATEGORY: Resource\n:PROPERTIES:\n:SOURCE: %^{Link or source}\n:TYPE: %^{Type|Article|Book|Tool|Documentation|Course}\n:CREATED: %U\n:END:\n\n* Summary\n%?\n\n* Key Points\n- \n\n* Action Items\n- TODO Review and extract insights\n\n* Notes\n")
-        ))
+         ,(concat "#+TITLE: %(my/capture-pop-title)\n"
+                  "#+CATEGORY: Resource\n"
+                  ":PROPERTIES:\n"
+                  ":SOURCE: %^{Link or source}\n"
+                  ":TYPE: %^{Type|Article|Book|Tool|Documentation|Course}\n"
+                  ":CREATED: %U\n"
+                  ":END:\n\n"
+                  "* Summary\n%?\n\n"
+                  "* Key Points\n- \n\n"
+                  "* Action Items\n"
+                  "- TODO Review and extract insights\n\n"
+                  "* Notes\n"))))
 
 ;; ============================================================================
 ;; KEYBINDINGS AND SETTINGS

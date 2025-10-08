@@ -21,22 +21,18 @@
 ;; READING TRACKER KEYBINDINGS
 ;; ============================================================================
 
-(global-set-key (kbd "C-c r o") #'my/org-reading-open)
-(global-set-key (kbd "C-c r b") #'my/org-reading-open-books)
-(global-set-key (kbd "C-c r n") #'my/org-reading-open-book-notes)
-(global-set-key (kbd "C-c r a") #'my/org-reading-add-book)
-(global-set-key (kbd "C-c r u") #'my/org-reading-set-current-page)
-(global-set-key (kbd "C-c r c") #'my/org-reading-complete-book)
-(global-set-key (kbd "C-c r d") #'my/org-reading-delete-book)
-(global-set-key (kbd "C-c r D") #'my/org-reading-set-deadline)
+(global-set-key (kbd "C-c r o") #'my/reading-open)          ;; Open reading file
+(global-set-key (kbd "C-c r a") #'my/reading-add-book)      ;; Add book
+(global-set-key (kbd "C-c r u") #'my/reading-update-progress) ;; Update progress
+(global-set-key (kbd "C-c r c") #'my/reading-complete-book) ;; Complete book
+(global-set-key (kbd "C-c r d") #'my/reading-set-deadline)  ;; Set deadline
 
 ;; ============================================================================
 ;; ZOTERO/BIBTEX KEYBINDINGS
 ;; ============================================================================
 
-(global-set-key (kbd "C-c z r") #'my/zotero-refresh)           ;; Refresh Zotero library cache
-(global-set-key (kbd "C-c z m") #'my/zotero-use-manual-source) ;; Use manual bib file (WSL/offline)
-(global-set-key (kbd "C-c z t") #'my/zotero-test-connection)   ;; Test connection
+(global-set-key (kbd "C-c z c") #'my/zotero-check-bib)         ;; Check bibliography status
+(global-set-key (kbd "C-c z o") #'my/zotero-open-bib-file)     ;; Open bibliography file
 (global-set-key (kbd "C-c z i") #'orb-insert-link)             ;; Insert bibliography link
 
 ;; ============================================================================
@@ -52,24 +48,47 @@
 ;; WORKSPACE NAVIGATION KEYBINDINGS
 ;; ============================================================================
 
-(global-set-key (kbd "C-c d") (lambda () (interactive) (dired org-directory)))
-(global-set-key (kbd "C-c e") (lambda () (interactive) (dired user-emacs-directory)))
-(global-set-key (kbd "C-c h") #'my/cheatsheet-show)
+(defun my/open-org-directory ()
+  "Open org directory in dired."
+  (interactive)
+  (dired org-directory))
+
+(defun my/open-emacs-directory ()
+  "Open Emacs configuration directory in dired."
+  (interactive)
+  (dired user-emacs-directory))
+
+(global-set-key (kbd "C-c d") #'my/open-org-directory)
+(global-set-key (kbd "C-c e") #'my/open-emacs-directory)
+(global-set-key (kbd "C-c h") #'dashboard-show)
 
 ;; ============================================================================
 ;; SPELL CHECKING KEYBINDINGS
 ;; ============================================================================
 
-(global-set-key (kbd "M-$") #'jinx-correct)              ;; Correct word at point
-(global-set-key (kbd "C-M-$") #'jinx-languages)          ;; Switch languages
-(global-set-key (kbd "C-c s c") #'jinx-correct)          ;; Easier alternative
-(global-set-key (kbd "C-c s l") #'jinx-languages)        ;; Language switching
-(global-set-key (kbd "C-c s b") #'my/jinx-correct-buffer) ;; Correct entire buffer
+(global-set-key (kbd "M-$") #'jinx-correct)     ;; Correct word at point
+(global-set-key (kbd "C-M-$") #'jinx-languages) ;; Switch languages
+;; Note: C-c s * keybindings are defined in spell-checking.el
 
 ;; ============================================================================
 ;; JOURNAL KEYBINDINGS
 ;; ============================================================================
 
 (global-set-key (kbd "C-c j") #'my/journal-capture-today)
+
+;; ============================================================================
+;; ORG LINK KEYBINDINGS
+;; ============================================================================
+
+(global-set-key (kbd "C-c l") #'org-store-link)
+(global-set-key (kbd "C-c C-l") #'org-insert-link)
+
+;; ============================================================================
+;; ADDITIONAL UTILITY KEYBINDINGS
+;; ============================================================================
+
+;; Quick access to configuration diagnosis
+(global-set-key (kbd "C-c ? d") #'my/diagnose-config)
+(global-set-key (kbd "C-c ? t") #'my/list-config-timing)
 
 (provide 'keybindings)
