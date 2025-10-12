@@ -7,6 +7,9 @@
 (eval-when-compile
   (declare-function orb--new-note "org-roam-bibtex"))
 
+(require 'seq)
+(require 'subr-x)
+
 (use-package org-roam
   :ensure t
   :custom
@@ -14,9 +17,12 @@
   (org-roam-directory (file-truename "~/org/resources/roam"))
   (org-roam-db-location (file-truename "~/org/resources/roam/org-roam.db"))
   (org-roam-completion-everywhere t)
-  
   ;; Simple display template - just show the title
   (org-roam-node-display-template "${title}")
+  ;; (org-roam-node-display-template
+  ;;  (concat "${title:60} "
+  ;;    (propertize "${tags:20}" 'face 'org-tag)))
+
   
   ;; Default capture template for general notes
   (org-roam-capture-templates
@@ -39,12 +45,19 @@
     (interactive)
     (dired org-roam-directory))
   
-  :bind (("C-c n f" . org-roam-node-find)
-         ("C-c n c" . org-roam-capture)
-         ("C-c n i" . org-roam-node-insert)
-         ("C-c n o" . my/org-roam-open-directory)
-         ("C-c n b" . org-roam-buffer-toggle)
-         ("C-c n u" . org-roam-ui-mode)))
+  ;; Tag-aware helpers ----------------------------------------------------
+  (defun my/org-roam--all-tags ()
+    "Return a list of all tags in the Org-roam database."
+    (seq-uniq
+     (seq-filter (lambda (tag) (and tag (not (string-empty-p tag))))
+                 (seq-mapcat #'org-roam-node-tags (org-roam-node-list)))))
+
+  (defun my/org-roam-find-by-tag (tag)
+    "Find an Org-roam node filtered by TAG."
+    (interactive (list (completing-read "Roam tag: " (my/org-roam--all-tags) nil t)))
+    (org-roam-node-find nil nil
+                        (lambda (node)
+                          (member tag (org-roam-node-tags node))))))
 
 ;; ============================================================================
 ;; ORG-ROAM-BIBTEX INTEGRATION

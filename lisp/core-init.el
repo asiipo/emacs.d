@@ -108,7 +108,21 @@
       savehist-additional-variables       ;; Save additional variables
       '(mark-ring global-mark-ring        ;; Mark rings
         search-ring regexp-search-ring    ;; Search history
-        extended-command-history))        ;; M-x history
+  extended-command-history))        ;; M-x history
+
+;; ;; Make *Completions* buffer list candidates one per line (TAB help)
+;; (setq completions-format 'one-column)
+
+;; Modern minibuffer completion (vertical layout similar to Ivy/Selectrum)
+;; (when (fboundp 'fido-vertical-mode)
+;;   (fido-vertical-mode 1))
+
+;; ============================================================================
+;; REPEAT MODE - Enable command repetition
+;; ============================================================================
+
+;; Enable repeat-mode for better UX (e.g., C-x o o o to cycle windows)
+(repeat-mode 1)
 
 ;; ============================================================================
 ;; SECURITY AND PRIVACY

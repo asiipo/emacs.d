@@ -144,12 +144,7 @@ Only runs if enough time has passed since last sync and no other sync is running
 ;; ============================================================================
 ;; KEYBINDINGS
 ;; ============================================================================
-(global-set-key (kbd "C-c g g") #'my/magit-org-status)     ;; Git status for org directory  
-(global-set-key (kbd "C-c g s") #'my/org-sync-now)         ;; Manual full sync (pull + commit + push)
-(global-set-key (kbd "C-c g t") #'my/org-toggle-auto-sync) ;; Toggle auto-pull on startup
-
-;; Keep standard magit keybinding for general use
-(global-set-key (kbd "C-x g") #'magit-status)              ;; Standard magit (prompts for repo)
+;; Keybindings are now centralized in keybindings.el
 
 ;; Initialize auto-sync when org-directory is available
 (with-eval-after-load 'org
