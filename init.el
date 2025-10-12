@@ -1,5 +1,11 @@
-;;; -*- lexical-binding: t; -*-
 ;;; init.el --- Main Emacs configuration -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Modular Emacs configuration using a centralized config-loader system.
+;; All functionality is organized into modules in the lisp/ directory.
+;; See lisp/config-loader.el for the list of loaded modules.
+
+;;; Code:
 
 ;; ============================================================================
 ;; CUSTOMIZATION AND PACKAGES
@@ -7,7 +13,6 @@
 
 ;; Add our lisp directory to load path
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-;; Dashboard is now consolidated in lisp/dashboard.el
 
 ;; Initialize package system and install required packages FIRST
 (require 'packages)
@@ -42,11 +47,24 @@
 (unless (my/load-all-config-modules)
   (message "⚠️  Some modules failed to load. Run M-x my/diagnose-config for details."))
 
+;; ============================================================================
+;; PLATFORM-SPECIFIC SETTINGS
+;; ============================================================================
+
 (when (eq system-type 'darwin)
   ;; On macOS, use left Option as Meta, disable right Option as Meta
   (setq mac-option-modifier 'meta
         mac-right-option-modifier nil))
 
 ;; ============================================================================
+;; STARTUP COMPLETE
+;; ============================================================================
+
+(message "✓ Emacs configuration loaded successfully!")
+
+;; ============================================================================
 ;; END OF INIT.EL
 ;; ============================================================================
+
+(provide 'init)
+;;; init.el ends here

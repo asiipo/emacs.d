@@ -12,6 +12,7 @@
 
 (use-package org-roam
   :ensure t
+  :defer t
   :custom
   ;; Directory configuration - keep database WITH roam files
   (org-roam-directory (file-truename "~/org/resources/roam"))

@@ -33,6 +33,7 @@
     org-roam-config      ;; Org-roam networked note-taking
     
     ;; === SPECIALIZED FEATURES ===  
+    gtd                 ;; GTD daily tracking with routine management
     reading-tracker     ;; Simple reading progress tracking
     journal             ;; Daily journaling with datetree
     dashboard           ;; Consolidated startup dashboard with time tracking
@@ -40,7 +41,7 @@
     ;; === EXTERNAL INTEGRATIONS ===
     zotero-bibtex       ;; Zotero Better BibTeX integration
     magit-config        ;; Git integration
-    spell-checking      ;; Modern spell checking with Jinx
+    spell-checking-config  ;; Modern spell checking with Jinx
     latex-config        ;; LaTeX editing and preview
     
     ;; === USER INTERFACE === (must be last)

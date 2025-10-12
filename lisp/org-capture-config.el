@@ -24,8 +24,38 @@
     (insert "#+TITLE: Inbox\n")))
 
 ;; ============================================================================
+;; SOMEDAY/MAYBE CONFIGURATION
+;; ============================================================================
+
+;; Set up someday file for future ideas and non-urgent tasks
+(defvar my/someday-file
+  (expand-file-name "someday.org" org-directory)
+  "File for someday/maybe tasks and ideas.")
+
+;; Create someday file if it doesn't exist
+(unless (file-exists-p my/someday-file)
+  (with-temp-file my/someday-file
+    (insert "#+TITLE: Someday/Maybe\n\n"
+            "* Ideas\n"
+            "Tasks and ideas without a specific timeline.\n"
+            "Review these during weekly planning.\n\n"
+            "* To Explore\n"
+            "Things to learn or investigate when time permits.\n\n"
+            "* Future Projects\n"
+            "Project ideas for later.\n\n")))
+
+;; ============================================================================
 ;; CAPTURE HELPER FUNCTIONS
 ;; ============================================================================
+
+;; Slugify function for creating clean filenames
+(defun my/slugify (str)
+  "Convert STR to a URL-friendly slug.
+Removes special characters, converts spaces to hyphens, and lowercases."
+  (let* ((slug (downcase str))
+         (slug (replace-regexp-in-string "[^a-z0-9]+" "-" slug))
+         (slug (replace-regexp-in-string "^-+\\|-+$" "" slug)))
+    slug))
 
 ;; Helper system to pass titles from target functions into templates
 (defvar my/capture--title nil
@@ -80,6 +110,11 @@ If the file exists, append -2, -3, etc. until we find an unused name."
         ("d" "Task with Deadline" entry
          (file ,org-default-notes-file)
          "* TODO %?\nDEADLINE: %^T\nCREATED: %U\n%i\n")
+
+        ;; Someday/Maybe: Ideas and future tasks
+        ("S" "Someday/Maybe" entry
+         (file+headline my/someday-file "Ideas")
+         "* SOMEDAY %? :someday:\nCREATED: %U\n%i\n")
 
         ;; Meeting: Meeting notes with scheduled time
         ("m" "Meeting" entry
@@ -179,6 +214,12 @@ If the file exists, append -2, -3, etc. until we find an unused name."
 ;; Enable speed commands for faster Org navigation
 ;; Based on Org Mode Guide section 2.1
 (setq org-use-speed-commands t)
+
+
+;; ---------------------------------------------------------------------------
+;; GTD capture: Removed from org-capture-templates
+;; Use C-c G keybinding instead (defined in keybindings.el)
+;; ---------------------------------------------------------------------------
 
 (provide 'org-capture-config)
 

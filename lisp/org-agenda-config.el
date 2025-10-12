@@ -56,7 +56,7 @@
            ((org-agenda-overriding-header "All Projects")))
           
           ("n" "Next actions" todo "NEXT"
-           ((org-agenda-overriding-header "Next Actions")))))
+           ((org-agenda-overriding-header "Next Actions"))))) ; Close setq
   
   ;; ============================================================================
   ;; AGENDA KEYBINDINGS
@@ -64,7 +64,7 @@
   
   ;; Enhanced agenda keybindings for workflow integration
   (define-key org-agenda-mode-map (kbd "i") #'my/goto-inbox)
-  (define-key org-agenda-mode-map (kbd "r") #'org-agenda-redo-all))
+  (define-key org-agenda-mode-map (kbd "r") #'org-agenda-redo-all)) ; Close with-eval-after-load
 
 (provide 'org-agenda-config)
 

@@ -73,7 +73,9 @@ Shows reading progress, time tracking, key bindings, and quick access to importa
 (defvar dashboard-cheatsheet-keys
   '(("Daily Essentials" (("C-c a" "Org agenda")
                           ("C-c c" "Org capture")
+                          ("C-c G" "GTD menu")
                           ("C-c i" "View inbox")
+                          ("C-c s" "Someday/Maybe")
                           ("C-c A" "Refresh agenda")
                           ("C-c C-w" "Refile current entry")
                           ("C-c d" "Open org workspace")

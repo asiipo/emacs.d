@@ -46,14 +46,17 @@ the result is safe for use in filenames."
 ;; Dynamic agenda files function to always include new files
 (defun my/org-agenda-files ()
   "Return list of org files for agenda scanning.
-Focus on actionable items: inbox + Projects + Areas (but exclude Resources for daily agenda)."
+Focus on actionable items: inbox + GTD + Projects + Areas (but exclude Resources for daily agenda)."
   (let* ((inbox (expand-file-name "inbox.org" org-directory))
+         (gtd (expand-file-name "gtd.org" org-directory))
          (projects (when (file-directory-p (expand-file-name "projects" org-directory))
                      (directory-files-recursively (expand-file-name "projects" org-directory) "\\.org$")))
          (areas (when (file-directory-p (expand-file-name "areas" org-directory))
                   (directory-files-recursively (expand-file-name "areas" org-directory) "\\.org$"))))
+    ;; Include GTD for time tracking and daily task scanning
     ;; Exclude Resources from daily agenda - they're reference materials, not actionable
-    (delete-dups (append (when (file-exists-p inbox) (list inbox)) 
+    (delete-dups (append (when (file-exists-p inbox) (list inbox))
+                         (when (file-exists-p gtd) (list gtd))
                          projects areas))))
 
 ;; Set agenda files to use the dynamic function
@@ -130,6 +133,11 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
   "Open the inbox.org file for quick access."
   (interactive)
   (find-file (expand-file-name "inbox.org" org-directory)))
+
+(defun my/goto-someday ()
+  "Open the someday.org file for reviewing future ideas."
+  (interactive)
+  (find-file (expand-file-name "someday.org" org-directory)))
 
 (defun my/refresh-agenda ()
   "Refresh the agenda view to include any new files."
@@ -218,6 +226,13 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
 ;; Enable easy templates (e.g., <s TAB for source blocks)
 (require 'org-tempo)
 
+;; Pretty bullets for org headings
+(use-package org-bullets
+  :ensure t
+  :hook (org-mode . org-bullets-mode))
+  ;; :config
+  ;; (setq org-bullets-bullet-list '("◉" "○" "✸" "✿")))
+
 ;; Configure Python interpreter for Org Babel (cross-platform)
 (defun my/find-python-executable ()
   "Find the best Python executable across different platforms."
@@ -255,6 +270,22 @@ Focus on actionable items: inbox + Projects + Areas (but exclude Resources for d
 ;; Stable links for reliable references (see Org Mode Guide section 4)
 (require 'org-id)
 (setq org-id-link-to-org-use-id t)
+
+;; ============================================================================
+;; TIME TRACKING (ORG-CLOCK)
+;; ============================================================================
+
+;; Enable persistent clock - remember clocks across Emacs sessions
+(setq org-clock-persist t)
+(org-clock-persistence-insinuate)
+
+;; Clock behavior
+(setq org-clock-in-resume t                      ; Resume interrupted clocks
+      org-clock-persist-query-resume nil         ; Don't ask about resuming
+      org-clock-out-remove-zero-time-clocks t    ; Remove zero-time entries
+      org-clock-report-include-clocking-task t   ; Show active clock in reports
+      org-clock-history-length 10                ; Remember last 10 clocked tasks
+      org-clock-mode-line-total 'current)        ; Display current task time in mode line
 
 ;; ============================================================================
 ;; REFILE CONFIGURATION

@@ -43,6 +43,7 @@ ac-comphist.dat
 recentf*
 tramp
 eshell
+org-clock-save.el
 
 url/*
 elpy/*

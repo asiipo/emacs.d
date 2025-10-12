@@ -13,9 +13,33 @@
 
 (global-set-key (kbd "C-c a") #'org-agenda)
 (global-set-key (kbd "C-c i") #'my/goto-inbox)
+(global-set-key (kbd "C-c s") #'my/goto-someday)
 (global-set-key (kbd "C-c A") #'my/refresh-agenda)
 (global-set-key (kbd "C-c C-w") #'org-refile)
 (global-set-key (kbd "C-c c") #'org-capture)
+
+;; GTD Menu - Interactive menu for GTD workflow
+;; C-c G → menu: [t]oday, [T]omorrow, [w]eek review, [r]eports, [a]rchive
+(global-set-key (kbd "C-c G") #'my/gtd-open)
+
+;; ============================================================================
+;; GTD KEYBINDINGS
+;; ============================================================================
+
+;; Main GTD menu (recommended entry point)
+;; C-c G                → Interactive menu with all options
+;;   t                  → Create/jump to today's headline
+;;   T                  → Create/jump to tomorrow's headline  
+;;   w                  → Weekly review (show last 7 days)
+;;   r                  → Time reports submenu:
+;;     w                → Week time report with tag aggregation
+;;     m                → Month time report with tag aggregation
+;;   a                  → Archive old entries (prompts for days, default 90)
+
+;; Direct access (if needed, but menu is recommended)
+;; (global-set-key (kbd "C-c G t") #'my/gtd-insert-today)
+;; (global-set-key (kbd "C-c G w") #'my/gtd-weekly-review)
+;; (global-set-key (kbd "C-c G a") #'my/gtd-archive-old-entries)
 
 ;; ============================================================================
 ;; ORG-ROAM KEYBINDINGS

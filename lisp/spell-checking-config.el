@@ -1,4 +1,4 @@
-;;; spell-checking.el --- Modern spell checking with Jinx -*- lexical-binding: t; -*-
+;;; spell-checking-config.el --- Modern spell checking with Jinx -*- lexical-binding: t; -*-
 
 ;; Version: 2.0 - Streamlined
 ;; Author: arttusii
@@ -48,5 +48,5 @@
    (t
     (message "✅ Jinx ready with languages: %s" jinx-languages))))
 
-(provide 'spell-checking)
-;;; spell-checking.el ends here
+(provide 'spell-checking-config)
+;;; spell-checking-config.el ends here
