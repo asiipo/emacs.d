@@ -42,6 +42,7 @@
 ;; Essential packages for the configuration
 (defvar my/essential-packages
   '((use-package . "Required for module configuration macros")
+    (diminish . "Hide or shorten minor mode indicators in mode line")
     (magit . "Git integration and version control")
     (doom-themes . "Theme collection including doom-dracula")
     (jinx . "Modern spell checking (requires: brew install enchant)")

@@ -45,6 +45,7 @@
     latex-config        ;; LaTeX editing and preview
     
     ;; === USER INTERFACE === (must be last)
+    modeline-config     ;; Clean mode line by hiding noisy minor modes
     keybindings)        ;; Centralized global keybindings
   "List of configuration modules to load in dependency order.
 Each module is loaded with error handling and progress reporting.")
