@@ -19,7 +19,7 @@
 (global-set-key (kbd "C-c c") #'org-capture)
 
 ;; GTD Menu - Interactive menu for GTD workflow
-;; C-c G → menu: [t]oday, [T]omorrow, [w]eek review, [r]eports, [a]rchive
+;; C-c G → menu: [t]oday, [T]omorrow, [w]eek, [l]ast week, [r]eports
 (global-set-key (kbd "C-c G") #'my/gtd-open)
 
 ;; ============================================================================
@@ -30,16 +30,19 @@
 ;; C-c G                → Interactive menu with all options
 ;;   t                  → Create/jump to today's headline
 ;;   T                  → Create/jump to tomorrow's headline  
-;;   w                  → Weekly review (show last 7 days)
+;;   w                  → Weekly review (show current week)
+;;   l                  → Last week review (show last week)
 ;;   r                  → Time reports submenu:
 ;;     w                → Week time report with tag aggregation
 ;;     m                → Month time report with tag aggregation
-;;   a                  → Archive old entries (prompts for days, default 90)
 
 ;; Direct access (if needed, but menu is recommended)
 ;; (global-set-key (kbd "C-c G t") #'my/gtd-insert-today)
 ;; (global-set-key (kbd "C-c G w") #'my/gtd-weekly-review)
-;; (global-set-key (kbd "C-c G a") #'my/gtd-archive-old-entries)
+
+;; Note: For archiving, use Org mode's built-in commands:
+;;   C-c C-x C-s        → Archive subtree (org-archive-subtree)
+;;   C-c C-x a          → Archive dispatcher menu
 
 ;; ============================================================================
 ;; ORG-ROAM KEYBINDINGS
