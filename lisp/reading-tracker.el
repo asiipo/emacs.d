@@ -139,12 +139,15 @@ Returns list of (title author current total progress daily-target) for each book
 
 (defun my/reading-calculate-daily-target (current total deadline-str)
   "Calculate daily reading target based on deadline.
-Returns nil if no deadline set, or pages per day needed."
+Returns nil if no deadline set, or pages per day needed.
+Deadline is interpreted as end of day (23:59:59)."
   (when (and deadline-str (not (string-empty-p deadline-str)))
     (condition-case nil
         (let* ((deadline-date (org-time-string-to-time deadline-str))
+               ;; Add one full day (86400 seconds) to count deadline day as a reading day
+               (deadline-end-of-day (time-add deadline-date 86400))
                (current-date (current-time))
-               (days-left (/ (float-time (time-subtract deadline-date current-date)) 86400))
+               (days-left (/ (float-time (time-subtract deadline-end-of-day current-date)) 86400))
                (pages-left (- total current)))
           (when (> days-left 0)
             (/ pages-left days-left)))

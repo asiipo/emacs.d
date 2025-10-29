@@ -106,8 +106,8 @@ Shows reading progress, time tracking, key bindings, and quick access to importa
                             ("C-M-$" "Switch Jinx languages")
                             ("C-c l" "Store org link")
                             ("C-c C-l" "Insert org link")
-                            ("C-c ? d" "Diagnose configuration")
-                            ("C-c ? t" "Show module timing")))))
+                            ("C-c D" "Diagnose configuration")
+                            ("C-c T" "Show module timing")))))
 
 ;; ============================================================================
 ;; GIT STATUS HELPER

@@ -127,7 +127,7 @@
 ;; ============================================================================
 
 ;; Quick access to configuration diagnosis
-(global-set-key (kbd "C-c ? d") #'my/diagnose-config)
-(global-set-key (kbd "C-c ? t") #'my/list-config-timing)
+(global-set-key (kbd "C-c D") #'my/diagnose-config)      ;; Capital D for Diagnose
+(global-set-key (kbd "C-c T") #'my/list-config-timing)   ;; Capital T for Timing
 
 (provide 'keybindings)
