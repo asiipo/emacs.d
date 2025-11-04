@@ -103,23 +103,6 @@
     (setq TeX-view-program-selection '((output-pdf "PDF Viewer"))
           TeX-view-program-list '(("PDF Viewer" "open %o"))))
 
-  ;; ============================================================================
-  ;; LATEX PREVIEW CONFIGURATION
-  ;; ============================================================================
-
-  ;; Org-mode LaTeX preview configuration
-  (when (fboundp 'org-mode)
-    ;; Make previews bigger for better readability
-    (setq org-format-latex-options
-          (plist-put org-format-latex-options :scale 2.0))
-
-    ;; Use crisp SVG images instead of blurry PNGs for better quality
-    (setq org-preview-latex-default-process 'dvisvgm)
-
-    ;; PERFORMANCE: LaTeX preview on-demand only (use C-c C-x C-l to toggle)
-    ;; Auto-preview disabled to prevent startup slowdown when loading many org files
-    (setq org-startup-with-latex-preview nil))
-
   ;; AUCTeX preview configuration
   (when (fboundp 'preview-latex)
     ;; Better preview settings
@@ -127,7 +110,27 @@
     ;; Preview only math and graphics by default
     (setq preview-default-option-list '("displaymath" "floats" "graphics" "textmath")))
 
-  ;; ============================================================================
+  ;; Note: LaTeX executable paths are handled by path-utils.el
+  ;; Optional packages (company-auctex, cdlatex, pdf-tools) are configured if available
+  )
+
+;; ============================================================================
+;; ORG-MODE LATEX PREVIEW CONFIGURATION (outside AUCTeX block)
+;; ============================================================================
+
+;; Apply to all org files, including org-roam
+(with-eval-after-load 'org
+  ;; Make previews bigger for better readability
+  (plist-put org-format-latex-options :scale 2.0)
+
+  ;; Use crisp SVG images instead of blurry PNGs for better quality
+  (setq org-preview-latex-default-process 'dvisvgm)
+
+  ;; PERFORMANCE: LaTeX preview on-demand only (use C-c C-x C-l to toggle)
+  ;; Auto-preview disabled to prevent startup slowdown when loading many org files
+  (setq org-startup-with-latex-preview nil))
+
+;; ============================================================================
   ;; UTILITY FUNCTIONS
   ;; ============================================================================
 
