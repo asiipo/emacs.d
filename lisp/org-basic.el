@@ -298,4 +298,20 @@ Focus on actionable items: inbox + GTD + Projects + Areas (but exclude Resources
       org-refile-targets '((org-agenda-files :maxlevel . 3)
                           (nil :maxlevel . 9)))
 
+;; ============================================================================
+;; EXPORT CONFIGURATION
+;; ============================================================================
+
+;; Load Beamer exporter (required for C-c C-e l P/B options)
+(require 'ox-beamer)
+
+;; Beamer export with custom style
+(with-eval-after-load 'ox-latex
+  ;; Add mystyle.sty to all LaTeX exports (including Beamer)
+  (add-to-list 'org-latex-packages-alist '("" "mybeamer" t)))
+
+;; To use Beamer export:
+;; 1. Add to your org file: #+LATEX_CLASS: beamer
+;; 2. Export with: C-c C-e l P (LaTeX → Beamer PDF)
+
 (provide 'org-basic)
