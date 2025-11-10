@@ -131,37 +131,33 @@
   (setq org-startup-with-latex-preview nil))
 
 ;; ============================================================================
-  ;; UTILITY FUNCTIONS
-  ;; ============================================================================
+;; UTILITY FUNCTIONS
+;; ============================================================================
 
-  (defun my/latex-word-count ()
-    "Count words in current LaTeX document using texcount."
-    (interactive)
-    (if (executable-find "texcount")
-        (let ((file (buffer-file-name)))
-          (if file
-              (shell-command (format "texcount -1 -sum %s" (shell-quote-argument file)))
-            (message "Buffer must be saved to a file first")))
-      (message "texcount not found. Install texlive-extra-utils or similar package.")))
+(defun my/latex-word-count ()
+  "Count words in current LaTeX document using texcount."
+  (interactive)
+  (if (executable-find "texcount")
+      (let ((file (buffer-file-name)))
+        (if file
+            (shell-command (format "texcount -1 -sum %s" (shell-quote-argument file)))
+          (message "Buffer must be saved to a file first")))
+    (message "texcount not found. Install texlive-extra-utils or similar package.")))
 
-  (defun my/latex-clean-aux-files ()
-    "Clean auxiliary LaTeX files in current directory."
-    (interactive)
-    (let ((aux-extensions '("aux" "bbl" "blg" "fls" "fdb_latexmk" "log" "out" "toc" "nav" "snm" "vrb")))
-      (dolist (ext aux-extensions)
-        (dolist (file (file-expand-wildcards (format "*.%s" ext)))
-          (delete-file file)))
-      (message "Cleaned LaTeX auxiliary files")))
+(defun my/latex-clean-aux-files ()
+  "Clean auxiliary LaTeX files in current directory."
+  (interactive)
+  (let ((aux-extensions '("aux" "bbl" "blg" "fls" "fdb_latexmk" "log" "out" "toc" "nav" "snm" "vrb")))
+    (dolist (ext aux-extensions)
+      (dolist (file (file-expand-wildcards (format "*.%s" ext)))
+        (delete-file file)))
+    (message "Cleaned LaTeX auxiliary files")))
 
-  ;; Keybindings for LaTeX utilities (only in LaTeX mode)
-  (add-hook 'LaTeX-mode-hook
-            (lambda ()
-              (local-set-key (kbd "C-c l w") #'my/latex-word-count)
-              (local-set-key (kbd "C-c l c") #'my/latex-clean-aux-files)))
-
-  ;; Note: LaTeX executable paths are handled by path-utils.el
-  ;; Optional packages (company-auctex, cdlatex, pdf-tools) are configured if available
-  )
+;; Keybindings for LaTeX utilities (only in LaTeX mode)
+(add-hook 'LaTeX-mode-hook
+          (lambda ()
+            (local-set-key (kbd "C-c l w") #'my/latex-word-count)
+            (local-set-key (kbd "C-c l c") #'my/latex-clean-aux-files)))
 
 ;; ============================================================================
 ;; INFORMATION & USAGE
