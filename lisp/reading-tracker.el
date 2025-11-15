@@ -49,11 +49,12 @@
         (goto-char (point-min))
         (re-search-forward "^\\* Books\\b")
         (org-end-of-subtree t t)
-        (insert (format "\n** %s\n:PROPERTIES:\n:AUTHOR: %s\n:TOTAL_PAGES: %d\n:CURRENT_PAGE: 0\n:START_DATE: %s%s\n:END:\n"
-                        title author pages (format-time-string "[%Y-%m-%d %a]")
+        (insert (format "\n** %s\n%s:PROPERTIES:\n:AUTHOR: %s\n:TOTAL_PAGES: %d\n:CURRENT_PAGE: 0\n:START_DATE: %s\n:END:\n"
+                        title
                         (if (and deadline (not (string-empty-p deadline)))
-                            (format "\n:DEADLINE: [%s]" deadline)
-                          "")))
+                            (format "DEADLINE: <%s>\n" deadline)
+                          "")
+                        author pages (format-time-string "[%Y-%m-%d %a]")))
         (save-buffer)))
     (message "Added: %s by %s" title author)))
 
