@@ -16,6 +16,9 @@
 ;; INBOX STATUS DISPLAY
 ;; ============================================================================
 
+(defvar dashboard-upcoming-events-days 14
+  "Number of days ahead to show upcoming events in the dashboard.")
+
 (defun dashboard--count-inbox-items ()
   "Count unprocessed TODO items in inbox.org under * Tasks heading."
   (let ((inbox-file (expand-file-name "inbox.org" org-directory)))
@@ -38,11 +41,12 @@
       0)))
 
 (defun dashboard--get-upcoming-events ()
-  "Get events from inbox.org * Events heading scheduled in the next 7 days."
+  "Get events from inbox.org * Events heading scheduled in the next N days.
+N is defined by `dashboard-upcoming-events-days'."
   (let ((inbox-file (expand-file-name "inbox.org" org-directory))
         (events '())
         (now (current-time))
-        (seven-days-later (time-add (current-time) (* 7 86400))))
+        (days-later (time-add (current-time) (* dashboard-upcoming-events-days 86400))))
     (when (file-exists-p inbox-file)
       (with-temp-buffer
         (insert-file-contents inbox-file)
@@ -78,9 +82,9 @@
                         (full-title (if parent-title
                                        (format "%s → %s" parent-title title)
                                      title)))
-                    ;; Check if event is within next 7 days
+                    ;; Check if event is within next N days
                     (when (and (time-less-p now sched-time)
-                              (time-less-p sched-time seven-days-later))
+                              (time-less-p sched-time days-later))
                       (push (cons full-title sched-time) events))))))))))
     ;; Sort by time
     (sort events (lambda (a b) (time-less-p (cdr a) (cdr b))))))
@@ -106,14 +110,14 @@
     ;; Upcoming events
     (if events
         (progn
-          (insert (format "\n  📅 Upcoming Events (next 7 days):\n"))
+          (insert (format "\n  📅 Upcoming Events (next %d days):\n" dashboard-upcoming-events-days))
           (dolist (event events)
             (let ((title (car event))
                   (time (cdr event)))
               (insert (format "    • %s — %s\n"
                             (format-time-string "%a %b %d" time)
                             title)))))
-      (insert "\n  No events scheduled in the next 7 days\n"))
+      (insert (format "\n  No events scheduled in the next %d days\n" dashboard-upcoming-events-days)))
     
     ))
 
