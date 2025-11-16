@@ -105,9 +105,8 @@
 ;; SPELL CHECKING KEYBINDINGS
 ;; ============================================================================
 
-(global-set-key (kbd "M-$") #'jinx-correct)     ;; Correct word at point
-(global-set-key (kbd "C-M-$") #'jinx-languages) ;; Switch languages
-;; Note: C-c s * keybindings are defined in spell-checking.el
+(global-set-key (kbd "C-;") #'jinx-correct)     ;; Correct word at point
+(global-set-key (kbd "C-M-;") #'jinx-languages) ;; Switch languages
 
 ;; ============================================================================
 ;; JOURNAL KEYBINDINGS

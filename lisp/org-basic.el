@@ -26,20 +26,6 @@
   (make-directory (expand-file-name d org-directory) t))
 
 ;; ============================================================================
-;; UTILITY FUNCTIONS
-;; ============================================================================
-
-(defun my/slugify (s)
-  "Convert string S to a filesystem-friendly slug.
-Removes special characters, converts spaces to hyphens, and ensures
-the result is safe for use in filenames."
-  (let* ((down (downcase (or s "")))
-         (trim (string-trim down))
-         (clean (replace-regexp-in-string "[^[:alnum:][:space:]-]" "" trim))
-         (spaces (replace-regexp-in-string "[[:space:]]+" "-" clean)))
-    (replace-regexp-in-string "/" "-" spaces)))
-
-;; ============================================================================
 ;; AGENDA CONFIGURATION
 ;; ============================================================================
 

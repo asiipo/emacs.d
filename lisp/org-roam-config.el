@@ -20,10 +20,6 @@
   (org-roam-completion-everywhere t)
   ;; Simple display template - just show the title
   (org-roam-node-display-template "${title}")
-  ;; (org-roam-node-display-template
-  ;;  (concat "${title:60} "
-  ;;    (propertize "${tags:20}" 'face 'org-tag)))
-
   
   ;; Default capture template for general notes
   (org-roam-capture-templates

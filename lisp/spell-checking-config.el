@@ -28,13 +28,7 @@
   (add-hook 'emacs-startup-hook 
             (lambda () 
               (when (fboundp 'global-jinx-mode)
-                (global-jinx-mode 1))))
-  
-  ;; Mode-specific keybindings
-  (with-eval-after-load 'jinx
-    (define-key jinx-mode-map (kbd "C-c s n") #'jinx-next)
-    (define-key jinx-mode-map (kbd "C-c s p") #'jinx-previous)
-    (define-key jinx-mode-map (kbd "C-c s c") #'jinx-correct)))
+                (global-jinx-mode 1)))))
 
 ;; Setup validation
 (defun my/check-jinx-setup ()

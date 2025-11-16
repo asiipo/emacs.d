@@ -45,45 +45,6 @@
             "Project ideas for later.\n\n")))
 
 ;; ============================================================================
-;; CAPTURE HELPER FUNCTIONS
-;; ============================================================================
-
-;; Slugify function for creating clean filenames
-(defun my/slugify (str)
-  "Convert STR to a URL-friendly slug.
-Removes special characters, converts spaces to hyphens, and lowercases."
-  (let* ((slug (downcase str))
-         (slug (replace-regexp-in-string "[^a-z0-9]+" "-" slug))
-         (slug (replace-regexp-in-string "^-+\\|-+$" "" slug)))
-    slug))
-
-;; Helper system to pass titles from target functions into templates
-(defvar my/capture--title nil
-  "Temporary storage for capture title during file creation.")
-
-(defun my/capture--set-title (s)
-  "Store title S for use in capture template."
-  (setq my/capture--title s))
-
-(defun my/capture-pop-title ()
-  "Return stored title and clear it for next use."
-  (prog1 (or my/capture--title "")
-    (setq my/capture--title nil)))
-
-(defun my/capture--unique-filename (dir base-name extension)
-  "Generate a unique filename in DIR with BASE-NAME and EXTENSION.
-If the file exists, append -2, -3, etc. until we find an unused name."
-  (let* ((base-file (expand-file-name (concat base-name extension) dir))
-         (counter 2)
-         (file base-file))
-    (while (file-exists-p file)
-      (setq file (expand-file-name 
-                  (format "%s-%d%s" base-name counter extension) 
-                  dir))
-      (setq counter (1+ counter)))
-    file))
-
-;; ============================================================================
 ;; CAPTURE TEMPLATES
 ;; ============================================================================
 
@@ -125,85 +86,7 @@ If the file exists, append -2, -3, etc. until we find an unused name."
                   ":PROPERTIES:\n"
                   ":ATTENDEES: %^{Attendees}\n"
                   ":END:\n\n"
-                  "** Agenda\n\n** Notes\n\n** Action Items\n"))
-        
-        ;; ========== PARA FILE TEMPLATES ==========
-        
-        ;; Project: Create new project file with template
-        ("p" "New Project (file)" plain
-         (file (lambda ()
-                 (let* ((title (read-string "Project title: "))
-                        (slug (my/slugify title))
-                        (dir (expand-file-name "projects" org-directory))
-                        (file (my/capture--unique-filename dir slug ".org")))
-                   (make-directory dir t)
-                   (my/capture--set-title title)
-                   file)))
-         ,(concat "#+TITLE: %(my/capture-pop-title)\n"
-                  "#+CATEGORY: Project\n"
-                  ":PROPERTIES:\n"
-                  ":AREA: %^{Area|Research|Teaching|Admin|Personal}\n"
-                  ":STATUS: Active\n"
-                  ":CREATED: %U\n"
-                  ":END:\n\n"
-                  "* Overview\n%?\n\n"
-                  "* Goals\n- [ ] \n\n"
-                  "* Next actions\n- TODO \n\n"
-                  "* Waiting for\n\n"
-                  "* Notes\n"))
-        
-        ;; Area: Create new area file with template
-        ("a" "New Area (file)" plain
-         (file (lambda ()
-                 (let* ((title (read-string "Area name: "))
-                        (slug (my/slugify title))
-                        (dir (expand-file-name "areas" org-directory))
-                        (file (my/capture--unique-filename dir slug ".org")))
-                   (make-directory dir t)
-                   (my/capture--set-title title)
-                   file)))
-         ,(concat "#+TITLE: %(my/capture-pop-title)\n"
-                  "#+CATEGORY: Area\n"
-                  ":PROPERTIES:\n"
-                  ":PURPOSE: %^{Purpose of this area}\n"
-                  ":REVIEW: weekly\n"
-                  ":CREATED: %U\n"
-                  ":END:\n\n"
-                  "* Purpose\n%?\n\n"
-                  "* Standards\n"
-                  "- What \"good\" looks like for this area\n"
-                  "- Key metrics or indicators of success\n\n"
-                  "* Current focus\n"
-                  "- TODO Review and maintain standards\n"
-                  "- TODO Plan next steps\n\n"
-                  "* Ongoing maintenance\n"
-                  "- TODO Regular review of this area\n\n"
-                  "* Resources\n"
-                  "- Links, documents, or tools related to this area\n\n"
-                  "* Notes\n"))
-        
-        ;; Resource: Create new resource file with template
-        ("r" "Resource (file)" plain
-         (file (lambda ()
-                 (let* ((topic (read-string "Resource topic: "))
-                        (slug (my/slugify topic))
-                        (dir (expand-file-name "resources" org-directory))
-                        (file (my/capture--unique-filename dir slug ".org")))
-                   (make-directory dir t)
-                   (my/capture--set-title topic)
-                   file)))
-         ,(concat "#+TITLE: %(my/capture-pop-title)\n"
-                  "#+CATEGORY: Resource\n"
-                  ":PROPERTIES:\n"
-                  ":SOURCE: %^{Link or source}\n"
-                  ":TYPE: %^{Type|Article|Book|Tool|Documentation|Course}\n"
-                  ":CREATED: %U\n"
-                  ":END:\n\n"
-                  "* Summary\n%?\n\n"
-                  "* Key Points\n- \n\n"
-                  "* Action Items\n"
-                  "- TODO Review and extract insights\n\n"
-                  "* Notes\n"))))
+                  "** Agenda\n\n** Notes\n\n** Action Items\n"))))
 
 ;; ============================================================================
 ;; KEYBINDINGS AND SETTINGS

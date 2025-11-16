@@ -13,6 +13,111 @@
 (require 'subr-x)
 
 ;; ============================================================================
+;; INBOX STATUS DISPLAY
+;; ============================================================================
+
+(defun dashboard--count-inbox-items ()
+  "Count unprocessed TODO items in inbox.org under * Tasks heading."
+  (let ((inbox-file (expand-file-name "inbox.org" org-directory)))
+    (if (file-exists-p inbox-file)
+        (with-temp-buffer
+          (insert-file-contents inbox-file)
+          (org-mode)
+          (let ((count 0))
+            (goto-char (point-min))
+            ;; Find the "* Tasks" heading
+            (when (re-search-forward "^\\* Tasks\\b" nil t)
+              ;; Count TODO items only within the Tasks subtree
+              (let ((tasks-end (save-excursion
+                                (org-end-of-subtree t t)
+                                (point))))
+                (while (re-search-forward org-todo-line-regexp tasks-end t)
+                  (when (member (match-string 2) '("TODO" "NEXT" "WAIT"))
+                    (setq count (1+ count))))))
+            count))
+      0)))
+
+(defun dashboard--get-upcoming-events ()
+  "Get events from inbox.org * Events heading scheduled in the next 7 days."
+  (let ((inbox-file (expand-file-name "inbox.org" org-directory))
+        (events '())
+        (now (current-time))
+        (seven-days-later (time-add (current-time) (* 7 86400))))
+    (when (file-exists-p inbox-file)
+      (with-temp-buffer
+        (insert-file-contents inbox-file)
+        (org-mode)
+        (goto-char (point-min))
+        ;; Find the "* Events" heading
+        (when (re-search-forward "^\\* Events\\b" nil t)
+          (let ((events-start (point))
+                (events-end (save-excursion
+                             (org-end-of-subtree t t)
+                             (point))))
+            ;; Find all ** and *** sub-headlines in Events section
+            (goto-char events-start)
+            (while (re-search-forward "^\\(\\*\\{2,3\\}\\) \\(.+\\)$" events-end t)
+              (let* ((level (length (match-string 1)))
+                     (title (string-trim (match-string 2)))
+                     (entry-end (save-excursion
+                                 (or (and (outline-next-heading) (point))
+                                     events-end)))
+                     (scheduled nil)
+                     (parent-title nil))
+                ;; Get parent title for level 3 headlines
+                (when (= level 3)
+                  (save-excursion
+                    (when (re-search-backward "^\\*\\* \\(.+\\)$" events-start t)
+                      (setq parent-title (string-trim (match-string 1))))))
+                ;; Look for SCHEDULED in the entry content
+                (save-excursion
+                  (when (re-search-forward "SCHEDULED: *<\\([^>]+\\)>" entry-end t)
+                    (setq scheduled (match-string 1))))
+                (when scheduled
+                  (let ((sched-time (org-time-string-to-time (concat "<" scheduled ">")))
+                        (full-title (if parent-title
+                                       (format "%s → %s" parent-title title)
+                                     title)))
+                    ;; Check if event is within next 7 days
+                    (when (and (time-less-p now sched-time)
+                              (time-less-p sched-time seven-days-later))
+                      (push (cons full-title sched-time) events))))))))))
+    ;; Sort by time
+    (sort events (lambda (a b) (time-less-p (cdr a) (cdr b))))))
+
+(defun dashboard--insert-inbox-status ()
+  "Insert inbox status with item count and upcoming events."
+  (let ((count (dashboard--count-inbox-items))
+        (events (dashboard--get-upcoming-events)))
+    (insert "\n📥 INBOX STATUS\n")
+    (insert (make-string 50 ?─) "\n")
+    
+    ;; Tasks count
+    (cond
+     ((= count 0)
+      (insert "  ✅ Inbox clear — Great job!\n"))
+     ((< count 5)
+      (insert (format "  ⚡ %d task%s to process\n" count (if (= count 1) "" "s"))))
+     ((< count 10)
+      (insert (format "  ⚠️  %d tasks — Time to process!\n" count)))
+     (t
+      (insert (format "  🚨 %d tasks — Inbox needs attention!\n" count))))
+    
+    ;; Upcoming events
+    (if events
+        (progn
+          (insert (format "\n  📅 Upcoming Events (next 7 days):\n"))
+          (dolist (event events)
+            (let ((title (car event))
+                  (time (cdr event)))
+              (insert (format "    • %s — %s\n"
+                            (format-time-string "%a %b %d" time)
+                            title)))))
+      (insert "\n  No events scheduled in the next 7 days\n"))
+    
+    ))
+
+;; ============================================================================
 ;; READING PROGRESS DISPLAY
 ;; ============================================================================
 
@@ -79,7 +184,7 @@ Shows reading progress, time tracking, key bindings, and quick access to importa
                           ("C-c A" "Refresh agenda")
                           ("C-c C-w" "Refile current entry")
                           ("C-c d" "Open org workspace")
-                          ("C-c h" "Show dashboard")))
+                          ))
 
     ("Org-Roam & Research" (("C-c n f" "Find/create note")
                              ("C-c n c" "Capture roam note")
@@ -102,8 +207,8 @@ Shows reading progress, time tracking, key bindings, and quick access to importa
                             ("C-c g t" "Toggle auto-sync")
                             ("C-x g" "Magit status (prompt)")
                             ("C-c e" "Open Emacs config")
-                            ("M-$" "Jinx correct word")
-                            ("C-M-$" "Switch Jinx languages")
+                            ("C-;" "Jinx correct word")
+                            ("C-M-;" "Switch Jinx languages")
                             ("C-c l" "Store org link")
                             ("C-c C-l" "Insert org link")
                             ("C-c D" "Diagnose configuration")
@@ -199,6 +304,9 @@ Shows reading progress, time tracking, key bindings, and quick access to importa
                                 (dashboard--format-git-status))
                         'face '(:foreground "dim gray")))
     
+    ;; Insert inbox status
+    (dashboard--insert-inbox-status)
+    
     ;; Insert reading progress
     (dashboard--insert-reading-progress)
     
@@ -241,9 +349,6 @@ Updates the content with current reading progress, time tracking, and key bindin
 ;; Show dashboard on startup
 (add-hook 'emacs-startup-hook
           (lambda ()
-            ;; Ensure startup time is calculated before showing dashboard
-            (when (fboundp 'dashboard--calculate-startup-time)
-              (dashboard--calculate-startup-time))
             (dashboard-show)
             (delete-other-windows)))  ;; Ensure a single window
 
