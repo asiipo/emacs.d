@@ -30,11 +30,9 @@
 (defvar org-directory (expand-file-name "~/org")
   "Base directory for all Org files and PARA structure.")
 
-;; Version control: don't create backup files for Git-managed files
-(setq vc-make-backup-files nil)
-
 ;; Load Org early so all modules can rely on it
-(require 'org)
+(unless (require 'org nil t)
+  (message "Warning: Org mode not available at startup"))
 
 ;; ============================================================================
 ;; MODULE LOADING
@@ -46,6 +44,22 @@
 ;; Use the centralized config loader for better error handling  
 (unless (my/load-all-config-modules)
   (message "⚠️  Some modules failed to load. Run M-x my/diagnose-config for details."))
+
+;; ============================================================================
+;; POST-STARTUP OPTIMIZATIONS
+;; ============================================================================
+
+;; Reset GC threshold after startup (was increased in early-init.el)
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (setq gc-cons-threshold (* 2 1024 1024))))  ; 2 MB
+
+;; ============================================================================
+;; FILE MANAGEMENT
+;; ============================================================================
+
+;; Version control: don't create backup files for Git-managed files
+(setq vc-make-backup-files nil)
 
 ;; ============================================================================
 ;; PLATFORM-SPECIFIC SETTINGS

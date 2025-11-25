@@ -114,8 +114,9 @@ N is defined by `dashboard-upcoming-events-days'."
           (dolist (event events)
             (let ((title (car event))
                   (time (cdr event)))
-              (insert (format "    • %s — %s\n"
+              (insert (format "    • %s %s — %s\n"
                             (format-time-string "%a %b %d" time)
+                            (format-time-string "%H:%M" time)
                             title)))))
       (insert (format "\n  No events scheduled in the next %d days\n" dashboard-upcoming-events-days)))
     

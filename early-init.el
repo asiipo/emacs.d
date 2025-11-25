@@ -16,6 +16,11 @@
       read-process-output-max (* 4 1024 1024)  ; 4 MB for better LSP performance
       load-prefer-newer t)                      ; Load newest .el or .elc file
 
+;; Native compilation settings (Emacs 28+)
+(when (fboundp 'native-comp-available-p)
+  (setq native-comp-async-report-warnings-errors nil
+        native-comp-deferred-compilation t))
+
 ;; ============================================================================
 ;; PACKAGE SYSTEM
 ;; ============================================================================
@@ -40,6 +45,9 @@
 ;; Start with a comfortable window size (160x60 characters)
 (add-to-list 'default-frame-alist '(width . 160))
 (add-to-list 'default-frame-alist '(height . 60))
+
+;; Default font (adjust size as needed)
+(add-to-list 'default-frame-alist '(font . "Monospace-11"))
 
 ;; ============================================================================
 ;; END OF EARLY-INIT.EL

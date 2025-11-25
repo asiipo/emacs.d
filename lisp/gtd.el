@@ -35,7 +35,7 @@
   "Number of seconds in a day (24 * 60 * 60).")
 
 (defcustom my/gtd-daily-sections
-  '(("Routines" " - [ ] \n")
+  '(("Routines" "")
     ("Notes" "")
     ("Summary" ""))
   "List of sections to create under each daily headline.
@@ -208,13 +208,15 @@ WEEK-OFFSET of 0 means current week, -1 means last week, etc."
   "Prompt for which time report to show."
   (interactive)
   (let ((choice (read-char-choice 
-                 "Time Report: [w]eek or [m]onth? " 
-                 '(?w ?m))))
+                 "Time Report: [w]eek, [m]onth, or [c]ustom date? " 
+                 '(?w ?m ?c))))
     (cond
      ((eq choice ?w)
       (my/gtd-time-report-week))
      ((eq choice ?m)
       (my/gtd-time-report-month))
+     ((eq choice ?c)
+      (my/gtd-time-report-custom))
      (t
       (my/gtd-time-report-week)))))
 
@@ -248,6 +250,11 @@ Returns the report buffer."
         (erase-buffer)
         (org-mode)
         (insert (format "#+TITLE: GTD Time Report - %s\n\n" title))
+        ;; Add aggregate table first (pass gtd-buf to avoid re-loading)
+        (insert "* Time by Tag (Aggregate)\n\n")
+        (my/gtd--insert-tag-aggregate start-time now gtd-buf)
+        (insert "\n")
+        ;; Then add the clocktable
         (insert (format "#+BEGIN: clocktable :scope file :maxlevel 4 :block %s :tags t :link t\n" clock-block))
         (insert "#+END:\n\n")
         ;; Insert the actual file content temporarily to run clocktable
@@ -265,10 +272,6 @@ Returns the report buffer."
         (when (search-forward "#+END:" nil t)
           (forward-line 1)
           (delete-region (point) (point-max)))
-        ;; Add aggregate table (pass gtd-buf to avoid re-loading)
-        (goto-char (point-max))
-        (insert "\n* Time by Tag (Aggregate)\n\n")
-        (my/gtd--insert-tag-aggregate start-time now gtd-buf)
         (goto-char (point-min))
         (setq buffer-read-only t)))
     buf))
@@ -282,6 +285,44 @@ Returns the report buffer."
   "Show time tracking report for the current month in a dedicated buffer."
   (interactive)
   (switch-to-buffer (my/gtd--time-report-common "This Month" 'thismonth)))
+
+(defun my/gtd-time-report-custom ()
+  "Show time tracking report from a custom start date to now."
+  (interactive)
+  (let* ((date-str (read-string "Start date (YYYY-MM-DD): "))
+         (start-time (org-time-string-to-time (concat "<" date-str ">")))
+         (now (current-time))
+         (buf (get-buffer-create "*GTD Time Report*"))
+         (gtd-buf (find-file-noselect my/gtd-file)))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (org-mode)
+        (insert (format "#+TITLE: GTD Time Report - From %s\n\n" date-str))
+        ;; Add aggregate table first
+        (insert "* Time by Tag (Aggregate)\n\n")
+        (my/gtd--insert-tag-aggregate start-time now gtd-buf)
+        (insert "\n")
+        ;; Add detailed clocktable
+        (insert (format "#+BEGIN: clocktable :scope file :maxlevel 4 :tstart \"%s\" :tend \"<now>\" :tags t :link t\n" date-str))
+        (insert "#+END:\n\n")
+        ;; Insert file content temporarily to run clocktable
+        (insert-buffer-substring gtd-buf)
+        (goto-char (point-min))
+        (condition-case err
+            (when (search-forward "#+BEGIN: clocktable" nil t)
+              (org-ctrl-c-ctrl-c))
+          (error
+           (message "GTD: Warning - Failed to update clocktable: %s" (error-message-string err))
+           (insert "\n⚠ Error updating clocktable. Make sure Org mode is properly loaded.\n")))
+        ;; Remove file content, keep only report
+        (goto-char (point-min))
+        (when (search-forward "#+END:" nil t)
+          (forward-line 1)
+          (delete-region (point) (point-max)))
+        (goto-char (point-min))
+        (setq buffer-read-only t)))
+    (switch-to-buffer buf)))
 
 (defun my/gtd--collect-tag-times (start-time end-time &optional buffer)
   "Collect all clock times grouped by tag between START-TIME and END-TIME.
