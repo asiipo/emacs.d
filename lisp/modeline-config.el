@@ -50,6 +50,10 @@
 (with-eval-after-load 'jinx
   (diminish 'jinx-mode " ✓"))         ; Checkmark indicates spell-check active
 
+;; GitHub Copilot - show AI indicator when active
+(with-eval-after-load 'copilot
+  (diminish 'copilot-mode " 🤖"))     ; Robot emoji indicates Copilot active
+
 ;; If you add more modes later, you can shorten them like this:
 ;; (diminish 'some-mode " Short")     ; Shows " Short" instead of full name
 

@@ -64,3 +64,6 @@ zotero-library.bib
 context/
 history
 network-security.data
+
+# Copilot files
+.cache/copilot/
