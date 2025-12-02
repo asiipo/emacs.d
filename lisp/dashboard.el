@@ -16,78 +16,94 @@
 ;; INBOX STATUS DISPLAY
 ;; ============================================================================
 
+(defconst dashboard--seconds-per-day 86400
+  "Number of seconds in a day (24 * 60 * 60).")
+
+(defconst dashboard--title-max-length 40
+  "Maximum length for book titles before truncation.")
+
 (defvar dashboard-upcoming-events-days 14
   "Number of days ahead to show upcoming events in the dashboard.")
 
-(defun dashboard--count-inbox-items ()
-  "Count unprocessed TODO items in inbox.org under * Tasks heading."
+(defun dashboard--with-inbox-file (func)
+  "Execute FUNC with inbox.org buffer if it exists.
+FUNC is called with the buffer in org-mode. Returns result of FUNC or nil if file doesn't exist."
   (let ((inbox-file (expand-file-name "inbox.org" org-directory)))
-    (if (file-exists-p inbox-file)
-        (with-temp-buffer
-          (insert-file-contents inbox-file)
-          (org-mode)
-          (let ((count 0))
-            (goto-char (point-min))
-            ;; Find the "* Tasks" heading
-            (when (re-search-forward "^\\* Tasks\\b" nil t)
-              ;; Count TODO items only within the Tasks subtree
-              (let ((tasks-end (save-excursion
-                                (org-end-of-subtree t t)
-                                (point))))
-                (while (re-search-forward org-todo-line-regexp tasks-end t)
-                  (when (member (match-string 2) '("TODO" "NEXT" "WAIT"))
-                    (setq count (1+ count))))))
-            count))
-      0)))
-
-(defun dashboard--get-upcoming-events ()
-  "Get events from inbox.org * Events heading scheduled in the next N days.
-N is defined by `dashboard-upcoming-events-days'."
-  (let ((inbox-file (expand-file-name "inbox.org" org-directory))
-        (events '())
-        (now (current-time))
-        (days-later (time-add (current-time) (* dashboard-upcoming-events-days 86400))))
     (when (file-exists-p inbox-file)
       (with-temp-buffer
         (insert-file-contents inbox-file)
         (org-mode)
-        (goto-char (point-min))
-        ;; Find the "* Events" heading
-        (when (re-search-forward "^\\* Events\\b" nil t)
-          (let ((events-start (point))
-                (events-end (save-excursion
-                             (org-end-of-subtree t t)
-                             (point))))
-            ;; Find all ** and *** sub-headlines in Events section
-            (goto-char events-start)
-            (while (re-search-forward "^\\(\\*\\{2,3\\}\\) \\(.+\\)$" events-end t)
-              (let* ((level (length (match-string 1)))
-                     (title (string-trim (match-string 2)))
-                     (entry-end (save-excursion
-                                 (or (and (outline-next-heading) (point))
-                                     events-end)))
-                     (scheduled nil)
-                     (parent-title nil))
-                ;; Get parent title for level 3 headlines
-                (when (= level 3)
-                  (save-excursion
-                    (when (re-search-backward "^\\*\\* \\(.+\\)$" events-start t)
-                      (setq parent-title (string-trim (match-string 1))))))
-                ;; Look for SCHEDULED in the entry content
-                (save-excursion
-                  (when (re-search-forward "SCHEDULED: *<\\([^>]+\\)>" entry-end t)
-                    (setq scheduled (match-string 1))))
-                (when scheduled
-                  (let ((sched-time (org-time-string-to-time (concat "<" scheduled ">")))
-                        (full-title (if parent-title
-                                       (format "%s → %s" parent-title title)
-                                     title)))
-                    ;; Check if event is within next N days
-                    (when (and (time-less-p now sched-time)
-                              (time-less-p sched-time days-later))
-                      (push (cons full-title sched-time) events))))))))))
-    ;; Sort by time
-    (sort events (lambda (a b) (time-less-p (cdr a) (cdr b))))))
+        (funcall func)))))
+
+(defun dashboard--count-inbox-items ()
+  "Count unprocessed TODO items in inbox.org under * Tasks heading."
+  (or (dashboard--with-inbox-file
+       (lambda ()
+         (let ((count 0))
+           (goto-char (point-min))
+           ;; Find the "* Tasks" heading
+           (when (re-search-forward "^\\* Tasks\\b" nil t)
+             ;; Count TODO items only within the Tasks subtree
+             (let ((tasks-end (save-excursion
+                               (org-end-of-subtree t t)
+                               (point))))
+               (while (re-search-forward org-todo-line-regexp tasks-end t)
+                 (when (member (match-string 2) '("TODO" "NEXT" "WAIT"))
+                   (setq count (1+ count))))))
+           count)))
+      0))
+
+(defun dashboard--get-upcoming-events ()
+  "Get events from inbox.org * Events heading scheduled in the next N days.
+N is defined by `dashboard-upcoming-events-days'."
+  (dashboard--with-inbox-file
+   (lambda ()
+     (let ((events '())
+           (now (current-time))
+           ;; Calculate start of today (midnight)
+           (seconds-today (* (string-to-number (format-time-string "%H" (current-time))) 3600))
+           (today-start (time-subtract (current-time) 
+                                      (+ (* (string-to-number (format-time-string "%H" (current-time))) 3600)
+                                         (* (string-to-number (format-time-string "%M" (current-time))) 60)
+                                         (string-to-number (format-time-string "%S" (current-time))))))
+           (days-later (time-add (current-time) (* dashboard-upcoming-events-days dashboard--seconds-per-day))))
+       (goto-char (point-min))
+       ;; Find the "* Events" heading
+       (when (re-search-forward "^\\* Events\\b" nil t)
+         (let ((events-start (point))
+               (events-end (save-excursion
+                            (org-end-of-subtree t t)
+                            (point))))
+           ;; Find all ** and *** sub-headlines in Events section
+           (goto-char events-start)
+           (while (re-search-forward "^\\(\\*\\{2,3\\}\\) \\(.+\\)$" events-end t)
+             (let* ((level (length (match-string 1)))
+                    (title (string-trim (match-string 2)))
+                    (entry-end (save-excursion
+                                (or (and (outline-next-heading) (point))
+                                    events-end)))
+                    (scheduled nil)
+                    (parent-title nil))
+               ;; Get parent title for level 3 headlines
+               (when (= level 3)
+                 (save-excursion
+                   (when (re-search-backward "^\\*\\* \\(.+\\)$" events-start t)
+                     (setq parent-title (string-trim (match-string 1))))))
+               ;; Look for SCHEDULED in the entry content
+               (save-excursion
+                 (when (re-search-forward "SCHEDULED: *<\\([^>]+\\)>" entry-end t)
+                   (setq scheduled (match-string 1))))
+               (when scheduled
+                 (let ((sched-time (org-time-string-to-time (concat "<" scheduled ">")))
+                       (full-title (if parent-title
+                                      (format "%s → %s" parent-title title)
+                                    title)))
+                   ;; Show events from today onwards (compare with midnight, not current time)
+                   (when (and (time-less-p today-start sched-time)
+                             (time-less-p sched-time days-later))
+                     (push (cons full-title sched-time) events))))))))
+       ;; Sort by time
+       (sort events (lambda (a b) (time-less-p (cdr a) (cdr b))))))))
 
 (defun dashboard--insert-inbox-status ()
   "Insert inbox status with item count and upcoming events."
@@ -111,13 +127,37 @@ N is defined by `dashboard-upcoming-events-days'."
     (if events
         (progn
           (insert (format "\n  📅 Upcoming Events (next %d days):\n" dashboard-upcoming-events-days))
-          (dolist (event events)
-            (let ((title (car event))
-                  (time (cdr event)))
-              (insert (format "    • %s %s — %s\n"
-                            (format-time-string "%a %b %d" time)
-                            (format-time-string "%H:%M" time)
-                            title)))))
+          ;; Calculate time boundaries once for all events
+          (let* ((now (current-time))
+                 (seconds-today (* (string-to-number (format-time-string "%H" now)) 3600))
+                 (today-start (time-subtract now (+ seconds-today
+                                                    (* (string-to-number (format-time-string "%M" now)) 60)
+                                                    (string-to-number (format-time-string "%S" now)))))
+                 (tomorrow-start (time-add today-start dashboard--seconds-per-day))
+                 (day-after-start (time-add tomorrow-start dashboard--seconds-per-day)))
+            (dolist (event events)
+              (let* ((title (car event))
+                     (time (cdr event))
+                     (is-today (and (time-less-p today-start time)
+                                   (time-less-p time tomorrow-start)))
+                     (is-tomorrow (and (time-less-p tomorrow-start time)
+                                      (time-less-p time day-after-start)))
+                     (date-str (format-time-string "%a %b %d" time))
+                     (time-str (format-time-string "%H:%M" time)))
+                ;; Insert with color based on day
+                (insert "    • ")
+                (cond
+                 (is-today
+                  (insert (propertize (format "%s %s" date-str time-str) 
+                                     'face 'success
+                                     'font-lock-face 'success)))
+                 (is-tomorrow
+                  (insert (propertize (format "%s %s" date-str time-str) 
+                                     'face 'warning
+                                     'font-lock-face 'warning)))
+                 (t
+                  (insert (format "%s %s" date-str time-str))))
+                (insert (format " — %s\n" title))))))
       (insert (format "\n  No events scheduled in the next %d days\n" dashboard-upcoming-events-days)))
     
     ))
@@ -142,8 +182,8 @@ N is defined by `dashboard-upcoming-events-days'."
                     (progress (nth 4 book))
                     (daily-target (nth 5 book)))
                 (insert (format "  %s\n" 
-                               (if (> (length title) 40) 
-                                   (concat (substring title 0 37) "...")
+                               (if (> (length title) dashboard--title-max-length) 
+                                   (concat (substring title 0 (- dashboard--title-max-length 3)) "...")
                                  title)))
                 (insert (format "  by %s | %d/%d pages (%.0f%%)%s\n" 
                                author current total progress
