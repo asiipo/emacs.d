@@ -32,18 +32,11 @@
 ;; Dynamic agenda files function to always include new files
 (defun my/org-agenda-files ()
   "Return list of org files for agenda scanning.
-Focus on actionable items: inbox + GTD + Projects + Areas (but exclude Resources for daily agenda)."
+Restricted to inbox.org and gtd.org to keep buffers clean."
   (let* ((inbox (expand-file-name "inbox.org" org-directory))
-         (gtd (expand-file-name "gtd.org" org-directory))
-         (projects (when (file-directory-p (expand-file-name "projects" org-directory))
-                     (directory-files-recursively (expand-file-name "projects" org-directory) "\\.org$")))
-         (areas (when (file-directory-p (expand-file-name "areas" org-directory))
-                  (directory-files-recursively (expand-file-name "areas" org-directory) "\\.org$"))))
-    ;; Include GTD for time tracking and daily task scanning
-    ;; Exclude Resources from daily agenda - they're reference materials, not actionable
-    (delete-dups (append (when (file-exists-p inbox) (list inbox))
-                         (when (file-exists-p gtd) (list gtd))
-                         projects areas))))
+         (gtd (expand-file-name "gtd.org" org-directory)))
+    (delete-dups (delq nil (list (when (file-exists-p inbox) inbox)
+                                 (when (file-exists-p gtd) gtd))))))
 
 ;; Set agenda files to use the dynamic function
 (setq org-agenda-files-function #'my/org-agenda-files
