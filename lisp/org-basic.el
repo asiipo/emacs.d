@@ -86,6 +86,7 @@ Focus on actionable items: inbox + GTD + Projects + Areas (but exclude Resources
 
 ;; Enable habit tracking for recurring tasks
 (add-to-list 'org-modules 'org-habit)
+(require 'org-habit)
 
 ;; Stuck project detection (Guide section 10.4)
 (setq org-stuck-projects '("project" ("TODO" "NEXT") nil ""))

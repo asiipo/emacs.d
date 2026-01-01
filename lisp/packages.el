@@ -46,7 +46,8 @@
     (magit . "Git integration and version control")
     (doom-themes . "Theme collection including doom-dracula")
     (jinx . "Modern spell checking (requires: brew install enchant)")
-    (org-roam-bibtex . "Bibliography management for org-roam"))
+    (org-roam-bibtex . "Bibliography management for org-roam")
+    (svg-lib . "SVG library for creating dynamic badges and progress bars"))
   "List of essential packages with descriptions.")
 
 ;; Install essential packages

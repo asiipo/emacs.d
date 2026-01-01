@@ -35,8 +35,7 @@
   "Number of seconds in a day (24 * 60 * 60).")
 
 (defcustom my/gtd-daily-sections
-  '(("Routines" "")
-    ("Notes" "")
+  '(("Notes" "")
     ("Summary" ""))
   "List of sections to create under each daily headline.
 Each element is a list (SECTION-NAME INITIAL-CONTENT).
@@ -91,11 +90,14 @@ Opens the file and positions point at the headline."
           (message "GTD: Jumped to today's headline"))
       ;; Headline doesn't exist - create it
       (goto-char (point-min))
-      ;; Find insertion point: after #+TITLE and blank lines, or at beginning
+      ;; Find insertion point: after #+TITLE, blank lines, and * Habits section if it exists
       (when (re-search-forward "^#\\+TITLE:" nil t)
         (forward-line 1)
         (while (and (not (eobp)) (looking-at "^[[:space:]]*$"))
           (forward-line 1)))
+      ;; Skip past * Habits section if present
+      (when (looking-at "^\\* Habits")
+        (org-end-of-subtree t t))
       (unless (bolp) (insert "\n"))
       (let ((insert-pos (point)))
         ;; Insert headline

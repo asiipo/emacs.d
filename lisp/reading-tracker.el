@@ -91,7 +91,7 @@
     (message "Updated %s: page %d" title page)))
 
 (defun my/reading-complete-book ()
-  "Mark a book as completed."
+  "Mark a book as completed and remove deadline if present."
   (interactive)
   (let* ((books (my/reading-get-books))
          (title (completing-read "Complete book: " (mapcar #'car books) nil t))
@@ -102,6 +102,12 @@
         (let ((total (org-entry-get (point) "TOTAL_PAGES")))
           (org-entry-put (point) "CURRENT_PAGE" total)
           (org-entry-put (point) "COMPLETED" (format-time-string "[%Y-%m-%d %a]"))
+          ;; Remove DEADLINE since book is complete
+          (save-excursion
+            (org-back-to-heading t)
+            (let ((end (save-excursion (org-end-of-subtree t t) (point))))
+              (when (re-search-forward "^DEADLINE: <[^>]+>" end t)
+                (delete-region (line-beginning-position) (1+ (line-end-position))))))
           (save-buffer))))
     (message "Completed: %s" title)))
 
