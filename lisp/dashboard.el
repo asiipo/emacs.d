@@ -24,7 +24,7 @@
 
 (defcustom dashboard-inbox-file "inbox.org"
   "Path to the inbox.org file (relative to `org-directory').
-Contains unprocessed tasks and upcoming events."
+Contains captured items and upcoming events."
   :type 'string
   :group 'dashboard)
 
@@ -267,6 +267,39 @@ Initialized from `dashboard-inbox-file' at runtime.")
       (setq dashboard--reading-file-expanded
             (expand-file-name dashboard-reading-file org-directory))))
 
+(defun dashboard--goto-org-entry (file heading)
+  "Navigate to HEADING in FILE.
+Opens FILE and searches for the heading text."
+  (when (and file (file-exists-p file))
+    (find-file file)
+    (goto-char (point-min))
+    (when heading
+      (if (re-search-forward (format org-complex-heading-regexp-format
+                                     (regexp-quote heading))
+                            nil t)
+          (progn
+            (org-back-to-heading t)
+            (org-show-entry)
+            (org-show-children))
+        ;; Fallback: simple search
+        (goto-char (point-min))
+        (search-forward heading nil t)))))
+
+(defun dashboard--make-clickable (text file heading &optional face)
+  "Make TEXT clickable, navigating to HEADING in FILE when clicked.
+Optional FACE specifies the text face."
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1]
+      (lambda () (interactive) (dashboard--goto-org-entry file heading)))
+    (define-key map (kbd "RET")
+      (lambda () (interactive) (dashboard--goto-org-entry file heading)))
+    (propertize text
+                'keymap map
+                'mouse-face 'highlight
+                'help-echo (format "Click to open: %s" heading)
+                'face (or face 'link)
+                'font-lock-face (or face 'link))))
+
 ;; ============================================================================
 ;; COLUMN LAYOUT UTILITIES
 ;; ============================================================================
@@ -325,7 +358,7 @@ FUNC is called with the buffer in org-mode. Returns result of FUNC or nil if fil
         dashboard--inbox-cache-file nil))
 
 (defun dashboard--count-inbox-items ()
-  "Count unprocessed TODO items under * Tasks heading."
+  "Count unprocessed TODO items under * Capture heading."
   (if (dashboard--inbox-cache-valid-p)
       (cadr dashboard--inbox-cache)  ;; Return cached count
     ;; Rebuild cache - parse inbox once for both count and events
@@ -349,14 +382,15 @@ Extracts both TODO count and upcoming events in a single pass."
      (let ((count 0)
            (events '())
            (today-start (dashboard--get-start-of-day))
+           ;; Fetch 1 year of events for the calendar graph
            (days-later (time-add (current-time) 
-                                (* dashboard-upcoming-events-days dashboard--seconds-per-day))))
+                                (* 366 dashboard--seconds-per-day))))
        
-       ;; Parse Tasks section for TODO count
+       ;; Parse Capture section for TODO count
        (goto-char (point-min))
-       (when (re-search-forward "^\\* Tasks\\b" nil t)
-         (let ((tasks-marker (point-marker)))
-           (goto-char tasks-marker)
+       (when (re-search-forward "^\\* Capture\\b" nil t)
+         (let ((capture-marker (point-marker)))
+           (goto-char capture-marker)
            (setq count (length
                        (org-map-entries
                         (lambda () (point))
@@ -382,15 +416,17 @@ Extracts both TODO count and upcoming events in a single pass."
                   (let ((sched-time (org-time-string-to-time scheduled))
                         (full-title (if parent-title
                                        (format "%s → %s" parent-title title)
-                                     title)))
+                                     title))
+                        (search-heading title))  ;; Store the actual heading for search
                     (when (and (time-less-p today-start sched-time)
                               (time-less-p sched-time days-later))
-                      (push (cons full-title sched-time) events))))))
+                      ;; Store as (full-title time . search-heading)
+                      (push (list full-title sched-time search-heading) events))))))
             nil
             'tree)))
        
        ;; Return combined data
-       (cons count (sort events (lambda (a b) (time-less-p (cdr a) (cdr b)))))))))
+       (cons count (sort events (lambda (a b) (time-less-p (nth 1 a) (nth 1 b)))))))))
 
 (defun dashboard--get-upcoming-events ()
   "Get events from * Events heading scheduled in the next N days.
@@ -400,103 +436,194 @@ N is defined by `dashboard-upcoming-events-days'."
     ;; Reparse if cache invalid (will update cache)
     (cdr (dashboard--parse-inbox-data))))
 
+(defun dashboard--get-day-load (date)
+  "Return the 'load' (count of scheduled items) for a specific DATE.
+DATE should be a time value."
+  (let ((count 0)
+        (date-str (format-time-string "%Y-%m-%d" date)))
+    ;; Count events from inbox.org
+    (let ((events (dashboard--get-upcoming-events)))
+      (dolist (evt events)
+        (when (string= (format-time-string "%Y-%m-%d" (nth 1 evt)) date-str)
+          (setq count (1+ count)))))
+    count))
+
+(defun dashboard--make-load-balancer (days width height)
+  "Create an SVG histogram showing workload for the next DAYS days.
+WIDTH and HEIGHT specify the SVG canvas size."
+  (let* ((svg (svg-create width height))
+         (bar-width (/ (float (- width 20)) days)) ;; 20px total padding
+         (gap 2)
+         (max-bar-height (- height 30))    ;; Leave room for labels
+         (now (current-time))
+         (max-load 0))
+    
+    ;; First pass: find max load for scaling
+    (dotimes (i days)
+      (let* ((date (time-add now (* i dashboard--seconds-per-day)))
+             (load (dashboard--get-day-load date)))
+        (setq max-load (max max-load load))))
+    
+    ;; Set minimum scale to avoid tiny bars
+    (setq max-load (max max-load 5))
+    
+    ;; Draw background
+    (svg-rectangle svg 0 0 width height
+                  :fill (dashboard--habit-grid-background) :stroke-width 0)
+    
+    ;; Draw bars
+    (dotimes (i days)
+      (let* ((date (time-add now (* i dashboard--seconds-per-day)))
+             (day-str (format-time-string "%a" date))  ;; "Mon", "Tue"
+             (day-num (format-time-string "%d" date))  ;; "12", "13"
+             (load (dashboard--get-day-load date))
+             ;; Scale bar height relative to max-load
+             (bar-h (if (> load 0)
+                       (* (/ max-bar-height (float max-load)) load)
+                     0))
+             (x (+ 10 (* i bar-width)))
+             (y (- height 25))          ;; Baseline for bars
+             (color (cond 
+                     ((= load 0) (face-attribute 'dashboard-habit-none :foreground nil t))
+                     ((<= load 2) (face-attribute 'dashboard-habit-level-1 :foreground nil t))
+                     ((<= load 4) (face-attribute 'dashboard-habit-level-2 :foreground nil t))
+                     (t (face-attribute 'dashboard-habit-level-3 :foreground nil t)))))
+        
+        ;; Draw bar
+        (when (> load 0)
+          (svg-rectangle svg 
+                        (+ x gap) 
+                        (- y bar-h) 
+                        (- bar-width (* 2 gap)) 
+                        bar-h 
+                        :fill color 
+                        :rx 2))
+        
+        ;; Draw day label (first letter only)
+        (svg-text svg 
+                 (substring day-str 0 1)
+                 :x (+ x (/ bar-width 2)) 
+                 :y (- height 15)
+                 :fill (face-attribute 'font-lock-comment-face :foreground nil t)
+                 :font-size "10" 
+                 :text-anchor "middle")
+        
+        ;; Draw day number below
+        (svg-text svg 
+                 day-num
+                 :x (+ x (/ bar-width 2)) 
+                 :y (- height 5)
+                 :fill (face-attribute 'font-lock-comment-face :foreground nil t)
+                 :font-size "8" 
+                 :text-anchor "middle")
+        
+        ;; Highlight today with a circle at the bottom
+        (when (= i 0)
+          (svg-circle svg 
+                     (+ x (/ bar-width 2)) 
+                     (- height 2) 
+                     2 
+                     :fill (face-attribute 'default :foreground nil t)))))
+    
+    (svg-image svg :ascent 'center)))
+
 (defun dashboard--insert-inbox-status ()
   "Insert inbox status with item count and upcoming events."
-  (let ((count (dashboard--count-inbox-items))
-        (events (dashboard--get-upcoming-events)))
-    (insert "\n📥 INBOX STATUS\n")
+  (let ((all-events (dashboard--get-upcoming-events)))
+    (insert "\n📅 CALENDAR\n")
     (insert (make-string 50 ?─) "\n")
     
-    ;; Tasks count
-    (let ((msg (cond
-                ((= count 0) "  ✅ Inbox clear — Great job!\n")
-                ((< count 5) (format "  ⚡ %d task%s to process\n" count (if (= count 1) "" "s")))
-                ((< count 10) (format "  ⚠️  %d tasks — Time to process!\n" count))
-                (t (format "  🚨 %d tasks — Inbox needs attention!\n" count)))))
-      (insert msg))
-    
+    ;; Insert Load Balancer histogram if svg-lib is available
+    (when (featurep 'svg-lib)
+      (insert "\n  📊 Next 14 Days (Workload):\n")
+      (insert "  ")
+      (insert-image (dashboard--make-load-balancer 14 400 60))
+      (insert "\n"))
+
     ;; Upcoming events
-    (if events
+    (if all-events
         (progn
           (insert (format "\n  📅 Upcoming Events (next %d days):\n" dashboard-upcoming-events-days))
+
           ;; Calculate time boundaries once for all events
           (let* ((today-start (dashboard--get-start-of-day))
                  (tomorrow-start (time-add today-start dashboard--seconds-per-day))
-                 (day-after-start (time-add tomorrow-start dashboard--seconds-per-day)))
-            (dolist (event events)
-              (let* ((title (car event))
-                     (time (cdr event))
+                 (day-after-start (time-add tomorrow-start dashboard--seconds-per-day))
+                 ;; Filter events for text display
+                 (display-limit-time (time-add today-start (* dashboard-upcoming-events-days dashboard--seconds-per-day)))
+                 (text-events (seq-filter (lambda (e) (time-less-p (nth 1 e) display-limit-time)) all-events)))
+            
+            (dolist (event text-events)
+              (let* ((title (nth 0 event))
+                     (time (nth 1 event))
+                     (search-heading (nth 2 event))
+                     (inbox-file (dashboard--get-inbox-file))
                      (is-today (and (time-less-p today-start time)
                                    (time-less-p time tomorrow-start)))
                      (is-tomorrow (and (time-less-p tomorrow-start time)
                                       (time-less-p time day-after-start)))
                      (date-str (format-time-string "%a %b %d" time))
-                     (time-str (format-time-string "%H:%M" time)))
+                     (time-str (format-time-string "%H:%M" time))
+                     (date-face (cond (is-today 'success)
+                                      (is-tomorrow 'warning)
+                                      (t nil))))
                 ;; Insert with color based on day
                 (insert "    • ")
-                (cond
-                 (is-today
-                  (insert (propertize (format "%s %s" date-str time-str) 
-                                     'face 'success
-                                     'font-lock-face 'success)))
-                 (is-tomorrow
-                  (insert (propertize (format "%s %s" date-str time-str) 
-                                     'face 'warning
-                                     'font-lock-face 'warning)))
-                 (t
-                  (insert (format "%s %s" date-str time-str))))
-                (insert (format " — %s\n" title))))))
-      (insert (format "\n  No events scheduled in the next %d days\n" dashboard-upcoming-events-days)))
-    
-    ))
+                (if date-face
+                    (insert (propertize (format "%s %s" date-str time-str) 
+                                       'face date-face
+                                       'font-lock-face date-face))
+                  (insert (format "%s %s" date-str time-str)))
+                (insert " — ")
+                ;; Make the title clickable
+                (insert (dashboard--make-clickable title inbox-file search-heading))
+                (insert "\n")))))
+      (insert (format "\n  No events scheduled in the next %d days\n" dashboard-upcoming-events-days)))))
 
 ;; ============================================================================
 ;; READING PROGRESS DISPLAY
 ;; ============================================================================
 
-(defun dashboard--render-progress-bar (current total &optional width)
-  "Render a text-based progress bar for CURRENT out of TOTAL.
-WIDTH is the bar width in characters (default 10)."
-  (let* ((w (or width 10))
-         (filled (round (* w (/ (float current) total))))
-         (empty (- w filled)))
-    (concat "[" 
-            (make-string filled ?=)
-            (make-string empty ?.)
-            "]")))
-
 (defun dashboard--insert-reading-progress ()
-  "Insert reading progress into dashboard as a compact table."
+  "Insert reading progress into dashboard in a compact format."
   (when (fboundp dashboard-reading-fetcher-function)
     (let ((books (funcall dashboard-reading-fetcher-function)))
       (if books
           (progn
             (insert "\n📚 CURRENT READING\n")
             (insert (make-string 80 ?─) "\n")
-            ;; Table header
-            (insert (format "  %-30s | %-20s | %-20s\n" 
-                           "Title" "Progress" "Target"))
-            (insert (format "  %s-+-%s-+-%s\n"
-                           (make-string 30 ?-)
-                           (make-string 20 ?-)
-                           (make-string 20 ?-)))
-            ;; Table rows
+            ;; Display each book compactly
             (dolist (book books)
               (let* ((title (nth 0 book))
-                     ;; (author (nth 1 book))  ; Author not displayed in table
+                     (author (nth 1 book))
                      (current (nth 2 book))
                      (total (nth 3 book))
                      (progress (nth 4 book))
                      (daily-target (nth 5 book))
-                     (title-display (dashboard--truncate-string title 30))
-                     (progress-text (format "%d/%d (%.0f%%)" current total progress))
-                     (target-text (if daily-target
-                                     (format "%.1f pages/day" daily-target)
-                                   "No deadline")))
-                (insert (format "  %-30s | %-20s | %-20s\n"
-                               title-display
-                               progress-text
-                               target-text))))
+                     (progress-color (cond
+                                      ((>= progress 75) 'success)
+                                      ((>= progress 50) 'warning)
+                                      ((>= progress 25) 'font-lock-constant-face)
+                                      (t 'error))))
+                
+                ;; Single line: Title by Author - Progress
+                (insert "  " (propertize title 'face '(:weight bold) 'font-lock-face '(:weight bold)))
+                (when (and author (not (string-empty-p author)))
+                  (insert (propertize (format " by %s" author)
+                                     'face '(:slant italic :foreground "gray")
+                                     'font-lock-face '(:slant italic :foreground "gray"))))
+                (insert " — ")
+                (insert (propertize (format "%.0f%%" progress)
+                                   'face progress-color
+                                   'font-lock-face progress-color))
+                (insert (format " (%d/%d)" current total))
+                
+                ;; Target on same line if exists
+                (when daily-target
+                  (insert (propertize (format " • %.1f p/day" daily-target)
+                                     'face 'font-lock-comment-face
+                                     'font-lock-face 'font-lock-comment-face)))
+                (insert "\n")))
             (insert "\n"))
         (insert "\n📚 No books currently being read\n\n")))))
 
@@ -961,7 +1088,7 @@ Returns an SVG image object."
     ;; Work backwards from today, placing each day in its correct week column
     (let ((today-dow (1- (string-to-number (format-time-string "%u" now)))) ;; Today's day of week (0=Mon)
           (stroke-color (face-attribute 'dashboard-habit-grid-stroke :foreground nil t))
-          (color-today (face-attribute 'dashboard-habit-today :foreground nil t))
+          (color-today-border (face-attribute 'default :foreground nil t)) ;; Use default fg for today's border
           (color-none (face-attribute 'dashboard-habit-none :foreground nil t))
           (color-lvl-1 (face-attribute 'dashboard-habit-level-1 :foreground nil t))
           (color-lvl-2 (face-attribute 'dashboard-habit-level-2 :foreground nil t))
@@ -993,17 +1120,19 @@ Returns an SVG image object."
                     (>= row 0) (< row rows))
             (let* ((x (+ gap (* col (+ cell-size gap))))
                    (y (+ gap (* row (+ cell-size gap))))
-                   (color (if is-today
-                             color-today
-                           (cond
+                   (color (cond
                             ((= count 0) color-none)
                             ((<= count threshold-1) color-lvl-1)
                             ((<= count threshold-2) color-lvl-2)
-                            (t color-lvl-3))))
-                   (border-color (if is-month-start
-                                    color-month-start
-                                  stroke-color))
-                   (border-width (if is-month-start 1.5 0.5)))
+                            (t color-lvl-3)))
+                   (border-color (cond
+                                  (is-today color-today-border)
+                                  (is-month-start color-month-start)
+                                  (t stroke-color)))
+                   (border-width (cond
+                                  (is-today 2.0)
+                                  (is-month-start 1.5)
+                                  (t 0.5))))
               (svg-rectangle svg x y cell-size cell-size
                             :fill color
                             :rx 1 :ry 1
@@ -1063,13 +1192,13 @@ Dispatches to SVG or text renderer based on svg-lib availability."
         (if (featurep 'svg-lib)
             (insert-image (dashboard--make-github-activity-graph daily-counts))
           (insert (dashboard--make-github-activity-graph daily-counts)))
-        (insert (format "\n  Average Consistency: %.0f%%\n" avg-consistency))
         
-        ;; Show per-habit consistency scores
-        (insert "\n  📊 Habit Performance:\n")
+        ;; Show per-habit consistency and average inline
+        (insert (format "\n  📊 Habit Performance (Average Consistency %.0f%%):\n" avg-consistency))
         (let* ((now (current-time))
                (today-normalized (dashboard--normalize-timestamp-for-org-day now))
-               (today-str (format-time-string "%Y-%m-%d" today-normalized)))
+               (today-str (format-time-string "%Y-%m-%d" today-normalized))
+               (gtd-file (dashboard--get-gtd-file)))
           (dolist (stat stats)
             (let* ((title (nth 0 stat))
                    (actual (nth 2 stat))
@@ -1087,20 +1216,22 @@ Dispatches to SVG or text renderer based on svg-lib availability."
                      ((not next-due) 'default) ;; No schedule
                      ((string< next-due-str today-str) 'error) ;; Red: Overdue
                      ((string= next-due-str today-str) 'warning) ;; Yellow: Due today
-                     (t 'font-lock-constant-face)))) ;; Blue/Cyan: Future
+                     (t 'font-lock-constant-face))) ;; Blue/Cyan: Future
+                   (stats-text (format ": %.0f%% (%d/%d)%s"
+                                      consistency
+                                      actual
+                                      (round expected)
+                                      (if (and streak (> streak 0))
+                                          (format " | 🔥 %d day%s" streak (if (= streak 1) "" "s"))
+                                        ""))))
               
               (insert "    • ")
-              (insert (propertize (format "%s: %.0f%% (%d/%d)%s\n"
-                            title
-                            consistency
-                            actual
-                            (round expected)
-                            (if (and streak (> streak 0))
-                                (format " | 🔥 %d day%s" streak (if (= streak 1) "" "s"))
-                              ""))
-                          'face status-face
-                          'font-lock-face status-face)))))
-        (insert "\n")))))
+              ;; Make the habit title clickable
+              (insert (dashboard--make-clickable title gtd-file title status-face))
+              (insert (propertize stats-text 'face status-face 'font-lock-face status-face))
+              (insert "\n"))))
+      ))))      
+        ;;(insert "\n")))))
 
 ;; ============================================================================
 ;; MAIN DASHBOARD FUNCTIONS
@@ -1125,17 +1256,17 @@ Dispatches to SVG or text renderer based on svg-lib availability."
                        "None")
                      (dashboard--format-git-status))
              'face '(:foreground "dim gray")))
-    (insert "\n")
+    ;; (insert "\n")
     
-    ;; Only show detailed inbox if >10 items or has events
-    (when (or (> inbox-count 10) events)
-      (dashboard--insert-inbox-status))
-
     ;; Insert habits
     (dashboard--insert-habits)
     
     ;; Insert reading progress
     (dashboard--insert-reading-progress)
+
+    ;; Only show detailed inbox if >10 items or has events
+    (when (or (> inbox-count 10) events)
+      (dashboard--insert-inbox-status))
     
     (insert "\n")
     (dashboard--render-keybindings)
