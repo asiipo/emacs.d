@@ -215,8 +215,6 @@ HISTORY a list of booleans, and NEXT-DUE a time value or nil."
                             ("C-c e" "Open Emacs config")
                             ("C-;" "Jinx correct word")
                             ("C-M-;" "Switch Jinx languages")
-                            ("C-c l" "Store org link")
-                            ("C-c C-l" "Insert org link")
                             ("C-c D" "Diagnose configuration")
                             ("C-c T" "Show module timing"))))
   "Keybinding cheatsheet organized by category.
@@ -407,11 +405,13 @@ Extracts both TODO count and upcoming events in a single pass."
               (let* ((level (org-outline-level))
                      (title (org-get-heading t t t t))
                      (scheduled (org-entry-get nil "SCHEDULED"))
+                     (deadline (org-entry-get nil "DEADLINE"))
                      (parent-title nil))
                 (when (= level 3)
                   (save-excursion
                     (org-up-heading-safe)
                     (setq parent-title (org-get-heading t t t t))))
+                ;; Process scheduled events
                 (when scheduled
                   (let ((sched-time (org-time-string-to-time scheduled))
                         (full-title (if parent-title
@@ -420,8 +420,19 @@ Extracts both TODO count and upcoming events in a single pass."
                         (search-heading title))  ;; Store the actual heading for search
                     (when (and (time-less-p today-start sched-time)
                               (time-less-p sched-time days-later))
-                      ;; Store as (full-title time . search-heading)
-                      (push (list full-title sched-time search-heading) events))))))
+                      ;; Store as (full-title time search-heading type)
+                      (push (list full-title sched-time search-heading 'scheduled) events))))
+                ;; Process deadline events
+                (when deadline
+                  (let ((deadline-time (org-time-string-to-time deadline))
+                        (full-title (if parent-title
+                                       (format "%s → %s" parent-title title)
+                                     title))
+                        (search-heading title))
+                    (when (and (time-less-p today-start deadline-time)
+                              (time-less-p deadline-time days-later))
+                      ;; Store as (full-title time search-heading type)
+                      (push (list full-title deadline-time search-heading 'deadline) events))))))
             nil
             'tree)))
        
@@ -436,15 +447,31 @@ N is defined by `dashboard-upcoming-events-days'."
     ;; Reparse if cache invalid (will update cache)
     (cdr (dashboard--parse-inbox-data))))
 
+(defun dashboard--get-days-with-deadlines (days)
+  "Return list of day indices (0 to DAYS-1) that have deadlines."
+  (let ((result '())
+        (now (current-time))
+        (events (dashboard--get-upcoming-events)))
+    (dotimes (i days)
+      (let* ((date (time-add now (* i dashboard--seconds-per-day)))
+             (date-str (format-time-string "%Y-%m-%d" date)))
+        (when (cl-some (lambda (evt)
+                        (and (eq (nth 3 evt) 'deadline)
+                             (string= (format-time-string "%Y-%m-%d" (nth 1 evt)) date-str)))
+                      events)
+          (push i result))))
+    (nreverse result)))
+
 (defun dashboard--get-day-load (date)
   "Return the 'load' (count of scheduled items) for a specific DATE.
 DATE should be a time value."
   (let ((count 0)
         (date-str (format-time-string "%Y-%m-%d" date)))
-    ;; Count events from inbox.org
+    ;; Count events from inbox.org (only scheduled, not deadlines)
     (let ((events (dashboard--get-upcoming-events)))
       (dolist (evt events)
-        (when (string= (format-time-string "%Y-%m-%d" (nth 1 evt)) date-str)
+        (when (and (string= (format-time-string "%Y-%m-%d" (nth 1 evt)) date-str)
+                   (eq (nth 3 evt) 'scheduled))  ;; Only count scheduled events
           (setq count (1+ count)))))
     count))
 
@@ -525,25 +552,43 @@ WIDTH and HEIGHT specify the SVG canvas size."
                      2 
                      :fill (face-attribute 'default :foreground nil t)))))
     
+    ;; Draw red underlines for days with deadlines
+    (let ((deadline-days (dashboard--get-days-with-deadlines days)))
+      (dolist (day-idx deadline-days)
+        (let* ((x (+ 10 (* day-idx bar-width)))
+               (center-x (+ x (/ bar-width 2)))
+               (underline-y (- height 2)))  ;; Just below the day number
+          (svg-line svg
+                   (- center-x 6)         ;; Start 6px left of center
+                   underline-y
+                   (+ center-x 6)         ;; End 6px right of center
+                   underline-y
+                   :stroke "#e74c3c"      ;; Red color
+                   :stroke-width 2))))
+    
     (svg-image svg :ascent 'center)))
 
 (defun dashboard--insert-inbox-status ()
   "Insert inbox status with item count and upcoming events."
   (let ((all-events (dashboard--get-upcoming-events)))
-    (insert "\n📅 CALENDAR\n")
+    (insert (format "\n📅 CALENDAR (next %d days)\n" dashboard-upcoming-events-days))
     (insert (make-string 50 ?─) "\n")
     
     ;; Insert Load Balancer histogram if svg-lib is available
     (when (featurep 'svg-lib)
-      (insert "\n  📊 Next 14 Days (Workload):\n")
+      (insert "\n  📊 Workload:\n")
       (insert "  ")
-      (insert-image (dashboard--make-load-balancer 14 400 60))
+      ;; Use same width as habit year log for consistency
+      (let ((histogram-width (+ (* dashboard-habit-grid-cols 
+                                   (+ dashboard-habit-cell-size dashboard-habit-cell-gap)) 
+                                dashboard-habit-cell-gap)))
+        (insert-image (dashboard--make-load-balancer dashboard-upcoming-events-days histogram-width 60)))
       (insert "\n"))
 
     ;; Upcoming events
     (if all-events
         (progn
-          (insert (format "\n  📅 Upcoming Events (next %d days):\n" dashboard-upcoming-events-days))
+          (insert "\n  📅 Upcoming Events:\n")
 
           ;; Calculate time boundaries once for all events
           (let* ((today-start (dashboard--get-start-of-day))
@@ -557,6 +602,7 @@ WIDTH and HEIGHT specify the SVG canvas size."
               (let* ((title (nth 0 event))
                      (time (nth 1 event))
                      (search-heading (nth 2 event))
+                     (event-type (nth 3 event))  ;; 'scheduled or 'deadline
                      (inbox-file (dashboard--get-inbox-file))
                      (is-today (and (time-less-p today-start time)
                                    (time-less-p time tomorrow-start)))
@@ -569,6 +615,8 @@ WIDTH and HEIGHT specify the SVG canvas size."
                                       (t nil))))
                 ;; Insert with color based on day
                 (insert "    • ")
+                (when (eq event-type 'deadline)
+                  (insert "⏰ "))
                 (if date-face
                     (insert (propertize (format "%s %s" date-str time-str) 
                                        'face date-face
@@ -1270,6 +1318,12 @@ Dispatches to SVG or text renderer based on svg-lib availability."
     
     (insert "\n")
     (dashboard--render-keybindings)
+    
+    ;; Quick Commands section
+    (insert "Quick Commands\n")
+    (insert "══════════════\n")
+    (insert (format "Change calendar days:  M-: (setq dashboard-upcoming-events-days N) RET  [current: %d]\n" 
+                    dashboard-upcoming-events-days))
     (goto-char (point-min))))
 
 (defun dashboard-show ()
