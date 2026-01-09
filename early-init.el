@@ -47,7 +47,7 @@
 (add-to-list 'default-frame-alist '(height . 60))
 
 ;; Default font (adjust size as needed)
-(add-to-list 'default-frame-alist '(font . "Monospace-11"))
+(add-to-list 'default-frame-alist '(font . "Monospace-14"))
 
 ;; ============================================================================
 ;; END OF EARLY-INIT.EL
