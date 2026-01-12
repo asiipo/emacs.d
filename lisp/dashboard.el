@@ -983,7 +983,7 @@ Returns number of streak days (actual completions, not calendar days)."
               (when (null days-from-today-to-most-recent)
                 (setq days-from-today-to-most-recent i))
               ;; Check if gap from previous completion is too large
-              (when (and (> streak 0) (> gap-between-completions interval))
+              (when (and (> streak 0) (>= gap-between-completions interval))
                 ;; Gap too large, streak is broken
                 (throw 'break streak))
               ;; Valid completion, increment streak and reset gap counter
@@ -1249,6 +1249,7 @@ Dispatches to SVG or text renderer based on svg-lib availability."
                (gtd-file (dashboard--get-gtd-file)))
           (dolist (stat stats)
             (let* ((title (nth 0 stat))
+                   (interval (nth 1 stat))
                    (actual (nth 2 stat))
                    (expected (nth 3 stat))
                    (consistency (nth 4 stat))
@@ -1265,13 +1266,18 @@ Dispatches to SVG or text renderer based on svg-lib availability."
                      ((string< next-due-str today-str) 'error) ;; Red: Overdue
                      ((string= next-due-str today-str) 'warning) ;; Yellow: Due today
                      (t 'font-lock-constant-face))) ;; Blue/Cyan: Future
+                   ;; Format streak based on interval
+                   (streak-text
+                    (when (and streak (> streak 0))
+                      (cond
+                       ((= interval 7) (format " | 🔥 %d week%s" streak (if (= streak 1) "" "s")))
+                       ((>= interval 28) (format " | 🔥 %d month%s" streak (if (= streak 1) "" "s")))
+                       (t (format " | 🔥 %d day%s" streak (if (= streak 1) "" "s"))))))
                    (stats-text (format ": %.0f%% (%d/%d)%s"
                                       consistency
                                       actual
                                       (round expected)
-                                      (if (and streak (> streak 0))
-                                          (format " | 🔥 %d day%s" streak (if (= streak 1) "" "s"))
-                                        ""))))
+                                      (or streak-text ""))))
               
               (insert "    • ")
               ;; Make the habit title clickable
