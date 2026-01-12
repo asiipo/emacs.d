@@ -1034,7 +1034,12 @@ Returns percentage (0-100+). Adjusts for new habits to avoid unfair penalties."
          (effective-window (if habit-age
                               (min days (1+ habit-age))  ;; +1 because age is 0-indexed
                             days))
-         (expected (dashboard--calculate-expected-completions interval effective-window)))
+         ;; For very new habits (less than 2 intervals), ensure expected is at least actual
+         ;; to prevent inflated percentages (e.g., 2/1.5 = 133%)
+         (raw-expected (dashboard--calculate-expected-completions interval effective-window))
+         (expected (if (< effective-window (* 2 interval))
+                      (max raw-expected (float actual-count))
+                    raw-expected)))
     (* (/ (float actual-count) expected) 100.0)))
 
 (defun dashboard--get-habit-statistics ()
