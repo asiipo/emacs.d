@@ -78,7 +78,8 @@ If the headline already exists, jump to it instead of inserting.
 Opens the file and positions point at the headline."
   (interactive)
   (my/gtd--ensure-file)
-  (let* ((headline (my/gtd--today-string time)))
+  (let* ((headline (my/gtd--today-string time))
+         (target-date (format-time-string "%Y-%m-%d" (or time (current-time)))))
     (find-file my/gtd-file)
     (goto-char (point-min))
     (if-let ((headline-pos (re-search-forward (regexp-quote headline) nil t)))
@@ -87,8 +88,8 @@ Opens the file and positions point at the headline."
           (goto-char (line-beginning-position))
           (org-show-subtree)
           (recenter)
-          (message "GTD: Jumped to today's headline"))
-      ;; Headline doesn't exist - create it
+          (message "GTD: Jumped to existing headline"))
+      ;; Headline doesn't exist - find correct insertion point chronologically
       (goto-char (point-min))
       ;; Find insertion point: after #+TITLE, blank lines, and * Habits section if it exists
       (when (re-search-forward "^#\\+TITLE:" nil t)
@@ -98,25 +99,41 @@ Opens the file and positions point at the headline."
       ;; Skip past * Habits section if present
       (when (looking-at "^\\* Habits")
         (org-end-of-subtree t t))
-      (unless (bolp) (insert "\n"))
+      
+      ;; Find correct chronological position (entries should be in descending order, newest first)
       (let ((insert-pos (point)))
-        ;; Insert headline
-        (insert (format "* %s\n" headline))
-        ;; Insert customizable sections
-        (dolist (section my/gtd-daily-sections)
-          (let ((section-name (car section))
-                (initial-content (cadr section)))
-            (insert (format "** %s\n" section-name))
-            (when (and initial-content (not (string-empty-p initial-content)))
-              (insert initial-content))))
-        ;; Insert clocktable for today's work
-        (insert "#+BEGIN: clocktable :scope tree1 :maxlevel 3 :block today :tags t\n")
-        (insert "#+END:\n")
-        (save-buffer)
+        (catch 'found
+          (while (re-search-forward my/gtd--date-headline-re nil t)
+            (let ((existing-date (my/gtd--extract-date-from-headline)))
+              (when (string< existing-date target-date)
+                ;; Found an older date, insert before it
+                (goto-char (line-beginning-position))
+                (setq insert-pos (point))
+                (throw 'found t))))
+          ;; No older date found, insert at end
+          (goto-char (point-max))
+          (setq insert-pos (point)))
+        
         (goto-char insert-pos)
-        (org-show-subtree)
-        (recenter)
-        (message "GTD: Created today's headline")))))
+        (unless (bolp) (insert "\n"))
+        (let ((final-insert-pos (point)))
+          ;; Insert headline
+          (insert (format "* %s\n" headline))
+          ;; Insert customizable sections
+          (dolist (section my/gtd-daily-sections)
+            (let ((section-name (car section))
+                  (initial-content (cadr section)))
+              (insert (format "** %s\n" section-name))
+              (when (and initial-content (not (string-empty-p initial-content)))
+                (insert initial-content))))
+          ;; Insert clocktable for today's work
+          (insert "#+BEGIN: clocktable :scope tree1 :maxlevel 3 :block today :tags t\n")
+          (insert "#+END:\n")
+          (save-buffer)
+          (goto-char final-insert-pos)
+          (org-show-subtree)
+          (recenter)
+          (message "GTD: Created headline"))))))
 
 ;;;###autoload
 (defun my/gtd-insert-tomorrow ()
@@ -127,19 +144,30 @@ Opens the file and positions point at the headline."
   (let ((tomorrow (time-add (current-time) my/gtd--seconds-per-day)))
     (my/gtd-insert-today tomorrow)))
 
+(defun my/gtd-insert-custom-date ()
+  "Insert a GTD headline for a custom date chosen by the user.
+If the headline already exists, jump to it instead of inserting.
+Opens the file and positions point at the headline."
+  (interactive)
+  (let* ((date-string (org-read-date nil nil nil "Select date: "))
+         (custom-time (org-time-string-to-time date-string)))
+    (my/gtd-insert-today custom-time)))
+
 ;;;###autoload
 (defun my/gtd-open ()
-  "Prompt user to choose Today, Tomorrow, weekly review, or time reports.
+  "Prompt user to choose Today, Tomorrow, Custom date, weekly review, or time reports.
 This is meant to be bound to a key like C-c G."
   (interactive)
   (let ((choice (read-char-choice 
-                 "GTD: [t]oday, [T]omorrow, [w]eek, [l]ast week, [r]eports? " 
-                 '(?t ?T ?w ?l ?r))))
+                 "GTD: [t]oday, [T]omorrow, [d]ate, [w]eek, [l]ast week, [r]eports? " 
+                 '(?t ?T ?d ?w ?l ?r))))
     (cond
      ((eq choice ?t)
       (my/gtd-insert-today))
      ((eq choice ?T)
       (my/gtd-insert-tomorrow))
+     ((eq choice ?d)
+      (my/gtd-insert-custom-date))
      ((eq choice ?w)
       (my/gtd-weekly-review))
      ((eq choice ?l)

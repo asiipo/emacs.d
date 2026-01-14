@@ -10,6 +10,7 @@
 
 (require 'org)
 (require 'org-table)
+(require 'org-agenda)
 (require 'subr-x)
 (require 'svg-lib nil t)
 
@@ -165,18 +166,21 @@ Validates FILE is a non-empty string before checking existence."
 
 (defun dashboard--validate-habit (habit)
   "Validate HABIT data structure.
-Returns t if HABIT has valid structure: (TITLE INTERVAL HISTORY NEXT-DUE).
-TITLE must be a non-empty string, INTERVAL a positive integer,
+Returns t if HABIT has valid structure: (TITLE INTERVAL GRACE-PERIOD HISTORY NEXT-DUE).
+TITLE must be a non-empty string, INTERVAL and GRACE-PERIOD positive integers,
 HISTORY a list of booleans, and NEXT-DUE a time value or nil."
   (and (listp habit)
-       (= (length habit) 4)
+       (= (length habit) 5)
        (let ((title (nth 0 habit))
              (interval (nth 1 habit))
-             (history (nth 2 habit)))
+             (grace-period (nth 2 habit))
+             (history (nth 3 habit)))
          (and (stringp title)
               (not (string-empty-p title))
               (integerp interval)
               (> interval 0)
+              (integerp grace-period)
+              (> grace-period 0)
               (listp history)
               (cl-every (lambda (x) (or (eq x t) (eq x nil))) history)))))
 
@@ -229,13 +233,20 @@ Each entry is (CATEGORY-NAME BINDINGS) where BINDINGS is a list of
   "Path to the habits file used for cache invalidation.
 Initialized from `dashboard-gtd-file' at runtime.")
 
-;; Inbox status cache
-(defvar dashboard--inbox-cache nil
-  "Cached inbox data. Structure: (mod-time count events).")
+;; Agenda-based event cache (TTL-based since org-agenda-files can change)
+(defvar dashboard--agenda-cache nil
+  "Cached agenda data. Structure: (timestamp todo-count events-list).")
 
-(defvar dashboard--inbox-cache-file nil
-  "Path to the inbox file used for cache invalidation.
-Initialized from `dashboard-inbox-file' at runtime.")
+(defvar dashboard--agenda-cache-ttl 60
+  "Time-to-live for agenda cache in seconds.
+Set to 0 to disable caching.")
+
+;; Pre-computed lookup tables for efficient date queries
+(defvar dashboard--events-by-date nil
+  "Hash table mapping date strings to lists of events for that date.")
+
+(defvar dashboard--deadlines-by-date nil
+  "Hash table mapping date strings to t if that date has deadlines.")
 
 ;; Memoized file path expansion
 (defvar dashboard--inbox-file-expanded nil
@@ -277,8 +288,8 @@ Opens FILE and searches for the heading text."
                             nil t)
           (progn
             (org-back-to-heading t)
-            (org-show-entry)
-            (org-show-children))
+            (org-fold-show-entry)
+            (org-fold-show-children))
         ;; Fallback: simple search
         (goto-char (point-min))
         (search-forward heading nil t)))))
@@ -333,147 +344,200 @@ If TIME is nil, use current time. Returns a time value."
                           (decoded-time-second decoded))))
     (time-subtract now seconds-today)))
 
-(defun dashboard--with-inbox-file (func)
-  "Execute FUNC with inbox buffer if it exists.
-FUNC is called with the buffer in org-mode. Returns result of FUNC or nil if file doesn't exist."
-  (let ((inbox-file (dashboard--get-inbox-file)))
+(defun dashboard--invalidate-agenda-cache ()
+  "Invalidate all agenda-related caches, forcing a refresh on next access."
+  (setq dashboard--agenda-cache nil
+        dashboard--events-by-date nil
+        dashboard--deadlines-by-date nil))
+
+;; ============================================================================
+;; ORG-AGENDA BASED DATA FETCHING
+;; ============================================================================
+
+(defun dashboard--agenda-cache-valid-p ()
+  "Check if the agenda cache is still valid (TTL-based)."
+  (and dashboard--agenda-cache
+       (> dashboard--agenda-cache-ttl 0)
+       (let ((cache-time (car dashboard--agenda-cache)))
+         (< (float-time (time-subtract (current-time) cache-time))
+            dashboard--agenda-cache-ttl))))
+
+(defun dashboard--get-agenda-entries-for-date (date)
+  "Get all agenda entries for DATE using org-agenda engine.
+DATE should be a time value. Returns (date-list . entries) with repeater support."
+  (let* ((decoded (decode-time date))
+         (day (nth 3 decoded))
+         (month (nth 4 decoded))
+         (year (nth 5 decoded))
+         (date-list (list month day year))
+         (entries '()))
+    (dolist (file (org-agenda-files))
+      (when (file-exists-p file)
+        (let ((file-entries (org-agenda-get-day-entries file date-list)))
+          (setq entries (append entries file-entries)))))
+    (cons date-list entries)))
+
+(defun dashboard--parse-agenda-entry (entry query-date-list)
+  "Parse an org-agenda ENTRY into our event format.
+QUERY-DATE-LIST is the (month day year) list used to query this entry.
+Returns (title time search-heading type file) or nil if not applicable."
+  (let* ((marker (get-text-property 0 'org-marker entry))
+         (hd-marker (get-text-property 0 'org-hd-marker entry))
+         (type (get-text-property 0 'type entry))
+         (time-of-day (get-text-property 0 'time-of-day entry))
+         (txt (get-text-property 0 'txt entry)))
+    ;; Skip habits - they're handled separately
+    (unless (get-text-property 0 'org-habit-p entry)
+      (when (and marker (member type '("scheduled" "deadline" "timestamp")))
+        (let* ((file (marker-buffer marker))
+               (file-path (when file (buffer-file-name file)))
+               ;; Use query date, not entry date (handles deadline warnings correctly)
+               (month (nth 0 query-date-list))
+               (day (nth 1 query-date-list))
+               (year (nth 2 query-date-list))
+               ;; Build time from query date and time-of-day
+               (hour (if time-of-day (/ time-of-day 100) 0))
+               (minute (if time-of-day (mod time-of-day 100) 0))
+               (time (encode-time 0 minute hour day month year))
+               ;; Get the actual heading for navigation
+               (heading (when hd-marker
+                         (with-current-buffer (marker-buffer hd-marker)
+                           (save-excursion
+                             (goto-char hd-marker)
+                             (org-get-heading t t t t)))))
+               ;; Clean up the display text
+               (title (replace-regexp-in-string "^[ \t]*" "" 
+                       (replace-regexp-in-string ":.*:$" "" (or txt heading "")))))
+          (list title time (or heading title) 
+                (cond ((string= type "deadline") 'deadline)
+                      (t 'scheduled))
+                file-path))))))
+
+(defun dashboard--build-event-lookup-tables (events)
+  "Build hash tables for efficient date-based event lookups from EVENTS."
+  (setq dashboard--events-by-date (make-hash-table :test 'equal))
+  (setq dashboard--deadlines-by-date (make-hash-table :test 'equal))
+  (dolist (evt events)
+    (let* ((date-str (format-time-string "%Y-%m-%d" (nth 1 evt)))
+           (event-type (nth 3 evt))
+           (existing (gethash date-str dashboard--events-by-date)))
+      ;; Add to events-by-date
+      (puthash date-str (cons evt existing) dashboard--events-by-date)
+      ;; Mark deadlines
+      (when (eq event-type 'deadline)
+        (puthash date-str t dashboard--deadlines-by-date)))))
+
+(defun dashboard--fetch-agenda-data ()
+  "Fetch all agenda data using org-agenda engine.
+Returns (todo-count . events-list) using proper agenda APIs.
+Also builds lookup tables for efficient date queries."
+  (dashboard--log "Fetching agenda data using org-agenda engine...")
+  (let ((todo-count 0)
+        (events '())
+        (now (current-time))
+        (today-start (dashboard--get-start-of-day))
+        ;; Fetch 1 year ahead for calendar graph
+        (days-to-fetch 366))
+    
+    ;; Count TODOs across all agenda files
+    (setq todo-count
+          (length (org-map-entries
+                   (lambda () (point))
+                   "TODO=\"TODO\"|TODO=\"NEXT\"|TODO=\"WAIT\""
+                   'agenda)))
+    
+    ;; Fetch events for the next N days using org-agenda engine
+    (dotimes (i days-to-fetch)
+      (let* ((date (time-add now (* i dashboard--seconds-per-day)))
+             (result (dashboard--get-agenda-entries-for-date date))
+             (query-date-list (car result))
+             (day-entries (cdr result)))
+        (dolist (entry day-entries)
+          (let ((parsed (dashboard--parse-agenda-entry entry query-date-list)))
+            (when parsed
+              (push parsed events))))))
+    
+    ;; Sort events by time and remove duplicates
+    (setq events (delete-dups 
+                  (sort events (lambda (a b) 
+                                (time-less-p (nth 1 a) (nth 1 b))))))
+    
+    ;; Filter out past events
+    (setq events (seq-filter (lambda (e) (time-less-p today-start (nth 1 e))) 
+                            events))
+    
+    ;; Build lookup tables for O(1) date queries
+    (dashboard--build-event-lookup-tables events)
+    
+    (dashboard--log "Found %d TODOs and %d events" todo-count (length events))
+    (cons todo-count events)))
+
+(defun dashboard--get-agenda-data ()
+  "Get agenda data with caching.
+Returns (todo-count . events-list)."
+  (if (dashboard--agenda-cache-valid-p)
+      (cdr dashboard--agenda-cache)
+    ;; Cache miss - fetch fresh data
+    (let ((data (dashboard--fetch-agenda-data)))
+      (setq dashboard--agenda-cache (cons (current-time) data))
+      data)))
+
+(defun dashboard--count-todo-items ()
+  "Count unprocessed TODO items across all agenda files."
+  (car (dashboard--get-agenda-data)))
+
+;; Alias for backwards compatibility
+(defalias 'dashboard--count-inbox-items 'dashboard--count-todo-items)
+
+(defun dashboard--count-inbox-only ()
+  "Count TODO items only from inbox.org under * Capture heading.
+This is for the dashboard header showing uncategorized/captured items."
+  (let ((inbox-file (dashboard--get-inbox-file))
+        (count 0))
     (when (file-exists-p inbox-file)
       (with-temp-buffer
         (insert-file-contents inbox-file)
         (org-mode)
-        (funcall func)))))
-
-(defun dashboard--inbox-cache-valid-p ()
-  "Check if the inbox cache is still valid."
-  (let ((inbox-file (dashboard--get-inbox-file)))
-    (dashboard--file-cache-valid-p dashboard--inbox-cache
-                                   'dashboard--inbox-cache-file
-                                   inbox-file)))
-
-(defun dashboard--invalidate-inbox-cache ()
-  "Invalidate the inbox cache, forcing a refresh on next access."
-  (setq dashboard--inbox-cache nil
-        dashboard--inbox-cache-file nil))
-
-(defun dashboard--count-inbox-items ()
-  "Count unprocessed TODO items under * Capture heading."
-  (if (dashboard--inbox-cache-valid-p)
-      (cadr dashboard--inbox-cache)  ;; Return cached count
-    ;; Rebuild cache - parse inbox once for both count and events
-    (let* ((inbox-data (dashboard--parse-inbox-data))
-           (count (car inbox-data))
-           (events (cdr inbox-data))
-           (inbox-file (dashboard--get-inbox-file)))
-      (when (file-exists-p inbox-file)
-        (setq dashboard--inbox-cache-file inbox-file
-              dashboard--inbox-cache (list (file-attribute-modification-time
-                                           (file-attributes inbox-file))
-                                          count
-                                          events)))
-      count)))
-
-(defun dashboard--parse-inbox-data ()
-  "Parse inbox file once and return (count . events).
-Extracts both TODO count and upcoming events in a single pass."
-  (dashboard--with-inbox-file
-   (lambda ()
-     (let ((count 0)
-           (events '())
-           (today-start (dashboard--get-start-of-day))
-           ;; Fetch 1 year of events for the calendar graph
-           (days-later (time-add (current-time) 
-                                (* 366 dashboard--seconds-per-day))))
-       
-       ;; Parse Capture section for TODO count
-       (goto-char (point-min))
-       (when (re-search-forward "^\\* Capture\\b" nil t)
-         (let ((capture-marker (point-marker)))
-           (goto-char capture-marker)
-           (setq count (length
-                       (org-map-entries
-                        (lambda () (point))
-                        "TODO=\"TODO\"|TODO=\"NEXT\"|TODO=\"WAIT\""
-                        'tree)))))
-       
-       ;; Parse Events section for upcoming events
-       (goto-char (point-min))
-       (when (re-search-forward "^\\* Events\\b" nil t)
-         (let ((events-start (point)))
-           (goto-char events-start)
-           (org-map-entries
-            (lambda ()
-              (let* ((level (org-outline-level))
-                     (title (org-get-heading t t t t))
-                     (scheduled (org-entry-get nil "SCHEDULED"))
-                     (deadline (org-entry-get nil "DEADLINE"))
-                     (parent-title nil))
-                (when (= level 3)
-                  (save-excursion
-                    (org-up-heading-safe)
-                    (setq parent-title (org-get-heading t t t t))))
-                ;; Process scheduled events
-                (when scheduled
-                  (let ((sched-time (org-time-string-to-time scheduled))
-                        (full-title (if parent-title
-                                       (format "%s → %s" parent-title title)
-                                     title))
-                        (search-heading title))  ;; Store the actual heading for search
-                    (when (and (time-less-p today-start sched-time)
-                              (time-less-p sched-time days-later))
-                      ;; Store as (full-title time search-heading type)
-                      (push (list full-title sched-time search-heading 'scheduled) events))))
-                ;; Process deadline events
-                (when deadline
-                  (let ((deadline-time (org-time-string-to-time deadline))
-                        (full-title (if parent-title
-                                       (format "%s → %s" parent-title title)
-                                     title))
-                        (search-heading title))
-                    (when (and (time-less-p today-start deadline-time)
-                              (time-less-p deadline-time days-later))
-                      ;; Store as (full-title time search-heading type)
-                      (push (list full-title deadline-time search-heading 'deadline) events))))))
-            nil
-            'tree)))
-       
-       ;; Return combined data
-       (cons count (sort events (lambda (a b) (time-less-p (nth 1 a) (nth 1 b)))))))))
+        ;; Find the * Capture heading and count TODOs under it
+        (goto-char (point-min))
+        (when (re-search-forward "^\\* Capture\\b" nil t)
+          (setq count (length (org-map-entries
+                               (lambda () (point))
+                               "TODO=\"TODO\"|TODO=\"NEXT\"|TODO=\"WAIT\""
+                               'tree))))))
+    count))
 
 (defun dashboard--get-upcoming-events ()
-  "Get events from * Events heading scheduled in the next N days.
+  "Get all scheduled/deadline events from org-agenda-files.
+Uses org-agenda engine with proper repeater support.
 N is defined by `dashboard-upcoming-events-days'."
-  (if (dashboard--inbox-cache-valid-p)
-      (caddr dashboard--inbox-cache)  ;; Return cached events (3rd element)
-    ;; Reparse if cache invalid (will update cache)
-    (cdr (dashboard--parse-inbox-data))))
+  (cdr (dashboard--get-agenda-data)))
 
 (defun dashboard--get-days-with-deadlines (days)
-  "Return list of day indices (0 to DAYS-1) that have deadlines."
+  "Return list of day indices (0 to DAYS-1) that have deadlines.
+Uses pre-computed lookup table for O(1) per-day queries."
+  ;; Ensure data is loaded
+  (dashboard--get-agenda-data)
   (let ((result '())
-        (now (current-time))
-        (events (dashboard--get-upcoming-events)))
+        (now (current-time)))
     (dotimes (i days)
       (let* ((date (time-add now (* i dashboard--seconds-per-day)))
              (date-str (format-time-string "%Y-%m-%d" date)))
-        (when (cl-some (lambda (evt)
-                        (and (eq (nth 3 evt) 'deadline)
-                             (string= (format-time-string "%Y-%m-%d" (nth 1 evt)) date-str)))
-                      events)
+        (when (and dashboard--deadlines-by-date
+                   (gethash date-str dashboard--deadlines-by-date))
           (push i result))))
     (nreverse result)))
 
 (defun dashboard--get-day-load (date)
   "Return the 'load' (count of scheduled items) for a specific DATE.
-DATE should be a time value."
-  (let ((count 0)
-        (date-str (format-time-string "%Y-%m-%d" date)))
-    ;; Count events from inbox.org (only scheduled, not deadlines)
-    (let ((events (dashboard--get-upcoming-events)))
-      (dolist (evt events)
-        (when (and (string= (format-time-string "%Y-%m-%d" (nth 1 evt)) date-str)
-                   (eq (nth 3 evt) 'scheduled))  ;; Only count scheduled events
-          (setq count (1+ count)))))
-    count))
+DATE should be a time value. Uses pre-computed lookup table for O(1) queries."
+  ;; Ensure data is loaded
+  (dashboard--get-agenda-data)
+  (let* ((date-str (format-time-string "%Y-%m-%d" date))
+         (day-events (and dashboard--events-by-date
+                          (gethash date-str dashboard--events-by-date))))
+    ;; Count only scheduled events (not deadlines)
+    (cl-count-if (lambda (evt) (eq (nth 3 evt) 'scheduled)) day-events)))
 
 (defun dashboard--make-load-balancer (days width height)
   "Create an SVG histogram showing workload for the next DAYS days.
@@ -603,7 +667,7 @@ WIDTH and HEIGHT specify the SVG canvas size."
                      (time (nth 1 event))
                      (search-heading (nth 2 event))
                      (event-type (nth 3 event))  ;; 'scheduled or 'deadline
-                     (inbox-file (dashboard--get-inbox-file))
+                     (event-file (or (nth 4 event) (dashboard--get-inbox-file)))
                      (is-today (and (time-less-p today-start time)
                                    (time-less-p time tomorrow-start)))
                      (is-tomorrow (and (time-less-p tomorrow-start time)
@@ -624,7 +688,7 @@ WIDTH and HEIGHT specify the SVG canvas size."
                   (insert (format "%s %s" date-str time-str)))
                 (insert " — ")
                 ;; Make the title clickable
-                (insert (dashboard--make-clickable title inbox-file search-heading))
+                (insert (dashboard--make-clickable title event-file search-heading))
                 (insert "\n")))))
       (insert (format "\n  No events scheduled in the next %d days\n" dashboard-upcoming-events-days)))))
 
@@ -853,7 +917,39 @@ If CUTOFF-TIME is provided, ignore entries older than this time."
 
 (defun dashboard--get-habit-interval-days ()
   "Return the repeater interval in days for the habit at point.
-For habits with min/max format (.+1d/3d), returns the maximum interval.
+For habits with min/max format (.+1d/3d), returns the minimum interval (ideal frequency).
+Defaults to 1 day if no repeater is found or if parsing fails."
+  (condition-case nil
+      (let ((sched (org-entry-get nil "SCHEDULED")))
+        (cond
+         ;; Match min/max format: .+1d/3d
+         ((and sched (string-match "\\([.+]+\\)\\([0-9]+\\)\\([dwmy]\\)/\\([0-9]+\\)\\([dwmy]\\)" sched))
+          (let ((min-val (string-to-number (match-string 2 sched)))
+                (min-unit (match-string 3 sched)))
+            (pcase min-unit
+              ("d" min-val)
+              ("w" (* min-val 7))
+              ("m" (* min-val 30))
+              ("y" (* min-val 365))
+              (_ 1))))
+         ;; Match simple format: .+1d
+         ((and sched (string-match "\\([.+]+\\)\\([0-9]+\\)\\([dwmy]\\)" sched))
+          (let ((val (string-to-number (match-string 2 sched)))
+                (unit (match-string 3 sched)))
+            (pcase unit
+              ("d" val)            ;; Days
+              ("w" (* val 7))      ;; Weeks
+              ("m" (* val 30))     ;; Months (approx)
+              ("y" (* val 365))    ;; Years
+              (_ 1))))
+         ;; No repeater found
+         (t 1)))
+    (error 1))) ;; Return 1 day on any error
+
+(defun dashboard--get-habit-grace-period-days ()
+  "Return the grace period (max interval) in days for the habit at point.
+For habits with min/max format (.+1d/4d), returns the maximum interval (grace period).
+For simple format habits, returns the same as the interval.
 Defaults to 1 day if no repeater is found or if parsing fails."
   (condition-case nil
       (let ((sched (org-entry-get nil "SCHEDULED")))
@@ -868,7 +964,7 @@ Defaults to 1 day if no repeater is found or if parsing fails."
               ("m" (* max-val 30))
               ("y" (* max-val 365))
               (_ 1))))
-         ;; Match simple format: .+1d
+         ;; Match simple format: .+1d (no grace period, use interval)
          ((and sched (string-match "\\([.+]+\\)\\([0-9]+\\)\\([dwmy]\\)" sched))
           (let ((val (string-to-number (match-string 2 sched)))
                 (unit (match-string 3 sched)))
@@ -907,7 +1003,9 @@ Returns a time value or nil if not scheduled."
 
 (defun dashboard--get-habits ()
   "Retrieve habits and their status with caching.
-Returns list of (TITLE INTERVAL HISTORY NEXT-DUE) where INTERVAL is days between repetitions.
+Returns list of (TITLE INTERVAL GRACE-PERIOD HISTORY NEXT-DUE) where:
+- INTERVAL is the ideal frequency in days (for expected completions)
+- GRACE-PERIOD is the maximum allowed gap in days (for streak calculation)
 Uses cache if habits file hasn't been modified since last read."
   (if (dashboard--habit-cache-valid-p)
       ;; Return cached data
@@ -931,13 +1029,14 @@ Uses cache if habits file hasn't been modified since last read."
               (goto-char pos)
               (let* ((title (org-get-heading t t t t))
                      (interval (dashboard--get-habit-interval-days))
+                     (grace-period (dashboard--get-habit-grace-period-days))
                      (history (dashboard--get-habit-history))
                      (next-due (dashboard--get-next-due-date))
-                     (habit (list title interval history next-due)))
+                     (habit (list title interval grace-period history next-due)))
                 (if (dashboard--validate-habit habit)
                     (progn
-                      (dashboard--log "Valid habit: %s (interval: %d days, history length: %d)"
-                                     title interval (length history))
+                      (dashboard--log "Valid habit: %s (interval: %d days, grace: %d days, history length: %d)"
+                                     title interval grace-period (length history))
                       (push habit results))
                   (dashboard--log "WARNING: Invalid habit data for: %s" title)))))) ; close push, let*, dolist, inner let, with-temp-buffer
         ;; Cache the results (use reverse to avoid destroying the list)
@@ -957,7 +1056,7 @@ Uses vectors internally for better performance (O(1) access vs O(n))."
   (let ((habits (dashboard--get-habits))
         (daily-counts (make-vector dashboard-habit-history-days 0)))
     (dolist (habit habits)
-      (let ((history (nth 2 habit)))  ; Third element is history
+      (let ((history (nth 3 habit)))  ; Fourth element is history
         (dotimes (day dashboard-habit-history-days)
           (when (nth day history)
             (aset daily-counts day (1+ (aref daily-counts day)))))))
@@ -998,15 +1097,15 @@ Returns number of streak days (actual completions, not calendar days)."
     streak))
 
 (defun dashboard--get-habit-streaks ()
-  "Get current streak for each habit respecting their individual intervals.
+  "Get current streak for each habit respecting their grace periods.
 Returns list of (TITLE . STREAK-DAYS)."
   (let ((habits (dashboard--get-habits)))
     (mapcar (lambda (habit)
               (let ((title (nth 0 habit))
-                    (interval (nth 1 habit))
-                    (history (nth 2 habit)))
+                    (grace-period (nth 2 habit))
+                    (history (nth 3 habit)))
                 (cons title
-                      (dashboard--calculate-habit-streak interval history))))
+                      (dashboard--calculate-habit-streak grace-period history))))
             habits)))
 
 (defun dashboard--calculate-expected-completions (interval days)
@@ -1049,8 +1148,9 @@ Returns list of (TITLE INTERVAL ACTUAL EXPECTED CONSISTENCY% NEXT-DUE HISTORY)."
     (mapcar (lambda (habit)
               (let* ((title (nth 0 habit))
                      (interval (nth 1 habit))
-                     (history (nth 2 habit))
-                     (next-due (nth 3 habit))
+                     ;; grace-period at index 2 not needed here
+                     (history (nth 3 habit))
+                     (next-due (nth 4 habit))
                      (actual (cl-count-if #'identity history))
                      (habit-age (dashboard--get-habit-age-days history))
                      (effective-window (if habit-age
@@ -1299,7 +1399,7 @@ Dispatches to SVG or text renderer based on svg-lib availability."
 (defun dashboard-render ()
   "Render the complete dashboard content in the current buffer."
   (let ((inhibit-read-only t)
-        (inbox-count (dashboard--count-inbox-items))
+        (inbox-count (dashboard--count-inbox-only))
         (events (dashboard--get-upcoming-events)))
     (erase-buffer)
     (insert (format "📚 Personal Workspace — %s\n" 
@@ -1350,12 +1450,12 @@ Creates or switches to the dashboard buffer and renders the content."
 (defun dashboard-refresh ()
   "Re-render the dashboard buffer.
 Updates the content with current reading progress, time tracking, and key bindings.
-Invalidates habit and inbox caches to ensure fresh data."
+Invalidates habit and agenda caches to ensure fresh data."
   (interactive)
   (when (derived-mode-p 'dashboard-mode)
     (dashboard--log "=== Dashboard refresh triggered ===")
     (dashboard--invalidate-habit-cache)
-    (dashboard--invalidate-inbox-cache)
+    (dashboard--invalidate-agenda-cache)
     ;; Also invalidate git status cache on manual refresh
     (setq dashboard--git-status-cache nil)
     (dashboard--log "All caches invalidated")
