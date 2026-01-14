@@ -25,6 +25,7 @@
   '(;; === FOUNDATION LAYER ===
     path-utils          ;; Cross-platform path utilities (must be first)
     core-init          ;; Core Emacs optimization: performance, UI, editing, security
+    theme-config       ;; Custom face configurations for themes
     
     ;; === ORG MODE ECOSYSTEM ===
     org-basic            ;; PARA structure, agenda, refile, archive

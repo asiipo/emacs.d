@@ -75,7 +75,7 @@
         ;; Someday/Maybe: Ideas and future tasks
         ("S" "Someday/Maybe" entry
          (file+headline my/someday-file "Ideas")
-         "* SOMEDAY %? :someday:\nCREATED: %U\n%i\n")
+         "* %? :someday:\nCREATED: %U\n%i\n")
 
         ;; Meeting: Meeting notes with scheduled time
         ("m" "Meeting" entry

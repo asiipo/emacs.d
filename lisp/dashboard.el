@@ -436,8 +436,9 @@ Also builds lookup tables for efficient date queries."
         (events '())
         (now (current-time))
         (today-start (dashboard--get-start-of-day))
-        ;; Fetch 1 year ahead for calendar graph
-        (days-to-fetch 366))
+        ;; Fetch only what we need: display days + calendar graph days
+        ;; Calendar needs ~60 days max for load balancer
+        (days-to-fetch (+ dashboard-upcoming-events-days 60)))
     
     ;; Count TODOs across all agenda files
     (setq todo-count
@@ -687,8 +688,8 @@ WIDTH and HEIGHT specify the SVG canvas size."
                                        'font-lock-face date-face))
                   (insert (format "%s %s" date-str time-str)))
                 (insert " — ")
-                ;; Make the title clickable
-                (insert (dashboard--make-clickable title event-file search-heading))
+                ;; Insert title as plain text
+                (insert title)
                 (insert "\n")))))
       (insert (format "\n  No events scheduled in the next %d days\n" dashboard-upcoming-events-days)))))
 
@@ -1052,9 +1053,13 @@ Uses cache if habits file hasn't been modified since last read."
   "Get habit completion counts for the last N days.
 Returns a list of N integers (defined by `dashboard-habit-history-days`).
 Uses vectors internally for better performance (O(1) access vs O(n))."
+  (dashboard--compute-daily-counts-from-habits (dashboard--get-habits)))
+
+(defun dashboard--compute-daily-counts-from-habits (habits)
+  "Compute daily habit counts from HABITS list.
+Returns a list of N integers (defined by `dashboard-habit-history-days`)."
   (dashboard--log "Calculating daily habit counts for %d days" dashboard-habit-history-days)
-  (let ((habits (dashboard--get-habits))
-        (daily-counts (make-vector dashboard-habit-history-days 0)))
+  (let ((daily-counts (make-vector dashboard-habit-history-days 0)))
     (dolist (habit habits)
       (let ((history (nth 3 habit)))  ; Fourth element is history
         (dotimes (day dashboard-habit-history-days)
@@ -1099,14 +1104,18 @@ Returns number of streak days (actual completions, not calendar days)."
 (defun dashboard--get-habit-streaks ()
   "Get current streak for each habit respecting their grace periods.
 Returns list of (TITLE . STREAK-DAYS)."
-  (let ((habits (dashboard--get-habits)))
-    (mapcar (lambda (habit)
-              (let ((title (nth 0 habit))
-                    (grace-period (nth 2 habit))
-                    (history (nth 3 habit)))
-                (cons title
-                      (dashboard--calculate-habit-streak grace-period history))))
-            habits)))
+  (dashboard--compute-streaks-from-habits (dashboard--get-habits)))
+
+(defun dashboard--compute-streaks-from-habits (habits)
+  "Compute streaks from HABITS list.
+Returns list of (TITLE . STREAK-DAYS)."
+  (mapcar (lambda (habit)
+            (let ((title (nth 0 habit))
+                  (grace-period (nth 2 habit))
+                  (history (nth 3 habit)))
+              (cons title
+                    (dashboard--calculate-habit-streak grace-period history))))
+          habits))
 
 (defun dashboard--calculate-expected-completions (interval days)
   "Calculate expected number of completions for a habit.
@@ -1144,24 +1153,28 @@ Returns percentage (0-100+). Adjusts for new habits to avoid unfair penalties."
 (defun dashboard--get-habit-statistics ()
   "Get detailed statistics for each habit.
 Returns list of (TITLE INTERVAL ACTUAL EXPECTED CONSISTENCY% NEXT-DUE HISTORY)."
-  (let ((habits (dashboard--get-habits)))
-    (mapcar (lambda (habit)
-              (let* ((title (nth 0 habit))
-                     (interval (nth 1 habit))
-                     ;; grace-period at index 2 not needed here
-                     (history (nth 3 habit))
-                     (next-due (nth 4 habit))
-                     (actual (cl-count-if #'identity history))
-                     (habit-age (dashboard--get-habit-age-days history))
-                     (effective-window (if habit-age
-                                          (min dashboard-habit-history-days (1+ habit-age))
-                                        dashboard-habit-history-days))
-                     (expected (dashboard--calculate-expected-completions 
-                               interval effective-window))
-                     (consistency (dashboard--calculate-consistency-percentage
-                                  actual interval dashboard-habit-history-days history)))
-                (list title interval actual expected consistency next-due history)))
-            habits)))
+  (dashboard--compute-statistics-from-habits (dashboard--get-habits)))
+
+(defun dashboard--compute-statistics-from-habits (habits)
+  "Compute statistics from HABITS list.
+Returns list of (TITLE INTERVAL ACTUAL EXPECTED CONSISTENCY% NEXT-DUE HISTORY)."
+  (mapcar (lambda (habit)
+            (let* ((title (nth 0 habit))
+                   (interval (nth 1 habit))
+                   ;; grace-period at index 2 not needed here
+                   (history (nth 3 habit))
+                   (next-due (nth 4 habit))
+                   (actual (cl-count-if #'identity history))
+                   (habit-age (dashboard--get-habit-age-days history))
+                   (effective-window (if habit-age
+                                        (min dashboard-habit-history-days (1+ habit-age))
+                                      dashboard-habit-history-days))
+                   (expected (dashboard--calculate-expected-completions 
+                             interval effective-window))
+                   (consistency (dashboard--calculate-consistency-percentage
+                                actual interval dashboard-habit-history-days history)))
+              (list title interval actual expected consistency next-due history)))
+          habits))
 
 (defun dashboard--svg-draw-month-labels (svg cell-size gap rows cols days)
   "Draw month labels on the SVG graph."
@@ -1332,9 +1345,10 @@ Dispatches to SVG or text renderer based on svg-lib availability."
     (when habits
       (insert "\n🔄 HABIT ACTIVITY (Last Year)\n")
       (insert (make-string 80 ?─) "\n")
-      (let* ((daily-counts (dashboard--get-daily-habit-counts))
-             (stats (dashboard--get-habit-statistics))
-             (streaks (dashboard--get-habit-streaks))
+      ;; Calculate all derived data from habits once to avoid redundant calls
+      (let* ((daily-counts (dashboard--compute-daily-counts-from-habits habits))
+             (stats (dashboard--compute-statistics-from-habits habits))
+             (streaks (dashboard--compute-streaks-from-habits habits))
              (avg-consistency (if stats
                                  (/ (apply #'+ (mapcar (lambda (s) (nth 4 s)) stats))
                                     (float (length stats)))

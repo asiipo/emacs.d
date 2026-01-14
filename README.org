@@ -1,32 +1,16 @@
 #+title: Personal Emacs Config
 #+author: arttusii
 
-* Why this exists
-- Minimal reminder of how my ~/.emacs.d is wired.
-- Modules live under =lisp/= and load via =config-loader.el= in this order:
-  1. =path-utils= → discovers binaries (latex, git, etc.)
-  2. =core-init= → GC, UI defaults, PDF Tools
-  3. Org stack: =org-basic=, =org-capture-config=, =org-agenda-config=, =org-roam-config=
-  4. Extras: =reading-tracker=, =journal=, =dashboard=
-  5. Integrations: =zotero-bibtex=, =magit-config=, =spell-checking=, =latex-config=
-  6. Final glue: =keybindings=
+* Architecture
+Modular config loaded via =config-loader.el=. All modules in =lisp/=, order matters:
+1. Foundation: =path-utils= → =core-init= (GC, Iosevka fonts, transparency) → =theme-config= (doom-dracula faces)
+2. Org: =org-basic= (PARA) → =org-capture-config= → =org-agenda-config= (⚡ views) → =org-roam-config=
+3. Features: =gtd= (habits) → =reading-tracker= → =journal= → =dashboard= (startup screen)
+4. Integrations: =zotero-bibtex= → =magit-config= → =spell-checking-config= (Jinx) → =latex-config= → =matlab-config= → =copilot-config=
+5. UI: =modeline-config= → =keybindings=
 
-* Setup checklist (macOS)
-- Clone repo into =~/.emacs.d/=
-- Ensure =~/org/= exists with PARA folders (projects, areas, resources, archive)
-- Install deps once:
-  #+begin_src sh
-  brew install enchant pkg-config
-  #+end_src
-- First Emacs launch installs packages automatically
-
-* Maintenance notes
-- =my/diagnose-config= buffers startup status, slow modules, missing dirs
-- Dashboard shows the same info plus reading progress
-- Use =my/reload-config-module= to hot reload a single module when hacking
-
-* Short reference
-- Org files auto-created if missing (see =org-basic.el=)
-- Capture templates write new project/area/resource files with metadata
-- PDF viewing handled by PDF Tools, Jinx handles spell check (en_US/fi)
-- Running =emacs --batch --eval '(load-file "init.el")'= is the quick smoke test
+* Setup (macOS)
+#+begin_src sh
+brew install enchant pkg-config
+#+end_src
+First launch auto-installs packages. Requires =~/org/= with PARA folders (auto-created).

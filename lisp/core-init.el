@@ -80,6 +80,49 @@
       hscroll-margin 1)
 
 ;; ============================================================================
+;; TYPOGRAPHY AND FONTS
+;; ============================================================================
+
+;; Set default fonts (Iosevka family for beautiful, modern look)
+(when (display-graphic-p)
+  ;; Main monospace font for code and most text
+  (when (find-font (font-spec :name "Iosevka"))
+    (set-face-attribute 'default nil
+                        :font "Iosevka"
+                        :height 160))  ;; 16pt (height is in 1/10pt)
+  
+  ;; Variable-pitch font for prose (org-mode text)
+  (when (find-font (font-spec :name "Iosevka Etoile"))
+    (set-face-attribute 'variable-pitch nil
+                        :font "Iosevka Etoile"
+                        :height 160))
+  
+  ;; Emoji support - ensures colorful emoji display
+  (when (find-font (font-spec :name "Noto Color Emoji"))
+    (set-fontset-font t 'symbol "Noto Color Emoji" nil 'append))
+  
+  ;; Fallback to common fonts if Iosevka not available
+  (unless (find-font (font-spec :name "Iosevka"))
+    (cond
+     ((find-font (font-spec :name "Fira Code"))
+      (set-face-attribute 'default nil :font "Fira Code" :height 140))
+     ((find-font (font-spec :name "DejaVu Sans Mono"))
+      (set-face-attribute 'default nil :font "DejaVu Sans Mono" :height 140)))))
+
+;; Frame transparency (94% opaque for subtle effect)
+(when (display-graphic-p)
+  (set-frame-parameter nil 'alpha-background 94)
+  (add-to-list 'default-frame-alist '(alpha-background . 94)))
+
+(defun my/toggle-transparency ()
+  "Toggle between transparent and opaque frame."
+  (interactive)
+  (let ((alpha (frame-parameter nil 'alpha-background)))
+    (if (and alpha (< alpha 100))
+        (set-frame-parameter nil 'alpha-background 100)
+      (set-frame-parameter nil 'alpha-background 94))))
+
+;; ============================================================================
 ;; FILE HANDLING
 ;; ============================================================================
 
