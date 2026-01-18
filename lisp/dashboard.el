@@ -1073,7 +1073,50 @@ Returns a list of N integers (defined by `dashboard-habit-history-days`)."
   "Calculate current streak from HISTORY respecting INTERVAL grace period.
 INTERVAL is the number of days allowed between completions.
 HISTORY is a list of booleans (most recent first, index 0 = today).
-Returns number of streak days (actual completions, not calendar days)."
+Returns number of streak periods (weeks for weekly habits, completions for others)."
+  (if (= interval 7)
+      ;; Weekly habit: count consecutive weeks with at least one completion
+      (dashboard--calculate-weekly-streak history)
+    ;; Non-weekly habit: use day-by-day logic
+    (dashboard--calculate-daily-streak interval history)))
+
+(defun dashboard--calculate-weekly-streak (history)
+  "Calculate streak for weekly habits by counting consecutive weeks with completions.
+HISTORY is a list of booleans (most recent first, index 0 = today).
+A week counts as successful if it has at least one completion.
+Returns the number of consecutive successful weeks."
+  (let ((streak 0)
+        (week-num 0)
+        (max-weeks (/ dashboard-habit-history-days 7)))
+    ;; Process each week (7-day period)
+    (catch 'break
+      (while (< week-num max-weeks)
+        (let ((week-has-completion nil)
+              (week-start (* week-num 7)))
+          ;; Check all 7 days in this week
+          (dotimes (day-offset 7)
+            (let ((history-index (+ week-start day-offset)))
+              (when (and (< history-index dashboard-habit-history-days)
+                        (nth history-index history))
+                (setq week-has-completion t))))
+          ;; Process this week
+          (if week-has-completion
+              (setq streak (1+ streak))
+            ;; Week has no completion
+            (if (= week-num 0)
+                ;; Current week (week 0) has no completion yet - don't break streak
+                ;; but also don't count it
+                nil
+              ;; Past week with no completion - streak is broken
+              (throw 'break streak)))
+          (setq week-num (1+ week-num)))))
+    streak))
+
+(defun dashboard--calculate-daily-streak (interval history)
+  "Calculate streak for daily/non-weekly habits using day-by-day logic.
+INTERVAL is the number of days allowed between completions.
+HISTORY is a list of booleans (most recent first, index 0 = today).
+Returns number of actual completions in the streak."
   (let ((streak 0)
         (gap-between-completions 0)
         (days-from-today-to-most-recent nil))
