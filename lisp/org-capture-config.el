@@ -75,18 +75,7 @@
         ;; Someday/Maybe: Ideas and future tasks
         ("S" "Someday/Maybe" entry
          (file+headline my/someday-file "Ideas")
-         "* %? :someday:\nCREATED: %U\n%i\n")
-
-        ;; Meeting: Meeting notes with scheduled time
-        ("m" "Meeting" entry
-         (file ,org-default-notes-file)
-         ,(concat "* Meeting: %? :meeting:\n"
-                  "SCHEDULED: %^T\n"
-                  "CREATED: %U\n"
-                  ":PROPERTIES:\n"
-                  ":ATTENDEES: %^{Attendees}\n"
-                  ":END:\n\n"
-                  "** Agenda\n\n** Notes\n\n** Action Items\n"))))
+         "* %? :someday:\nCREATED: %U\n%i\n")))
 
 ;; ============================================================================
 ;; KEYBINDINGS AND SETTINGS

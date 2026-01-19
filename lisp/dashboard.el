@@ -1492,6 +1492,7 @@ Dispatches to SVG or text renderer based on svg-lib availability."
     (insert "══════════════\n")
     (insert (format "Change calendar days:  M-: (setq dashboard-upcoming-events-days N) RET  [current: %d]\n" 
                     dashboard-upcoming-events-days))
+    (insert "Find roam by tag:      M-x my/org-roam-find-by-tag\n")
     (goto-char (point-min))))
 
 (defun dashboard-show ()
