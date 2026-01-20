@@ -249,7 +249,7 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
 
 ;; Stable links for reliable references (see Org Mode Guide section 4)
 (require 'org-id)
-(setq org-id-link-to-org-use-id t)
+(setq org-id-link-to-org-use-id 'create-if-interactive)
 
 ;; ============================================================================
 ;; TIME TRACKING (ORG-CLOCK)
