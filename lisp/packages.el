@@ -47,7 +47,9 @@
     (doom-themes . "Theme collection including doom-dracula")
     (jinx . "Modern spell checking (requires: brew install enchant)")
     (org-roam-bibtex . "Bibliography management for org-roam")
-    (svg-lib . "SVG library for creating dynamic badges and progress bars"))
+    (svg-lib . "SVG library for creating dynamic badges and progress bars")
+    ;; (gptel . "LLM client for Ollama/local models (Morning Briefing agent)")
+    )
   "List of essential packages with descriptions.")
 
 ;; Install essential packages

@@ -45,7 +45,8 @@
     spell-checking-config  ;; Modern spell checking with Jinx
     latex-config        ;; LaTeX editing and preview
     matlab-config       ;; MATLAB editing with platform-specific paths
-    copilot-config      ;; GitHub Copilot AI code completion
+    ;; copilot-config      ;; GitHub Copilot AI code completion (disabled)
+    ;; llm-assistant       ;; Local LLM Morning Briefing agent (Ollama) (disabled)
     
     ;; === USER INTERFACE === (must be last)
     modeline-config     ;; Clean mode line by hiding noisy minor modes
