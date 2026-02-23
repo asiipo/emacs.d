@@ -1,11 +1,18 @@
-;;; journal.el --- Simple DateTree journal -*- lexical-binding: t; -*-
+;;; journal.el --- DateTree journal and literature notes -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Minimal journaling helper using a single DateTree file at ~/org/areas/journal.org.
-;; Provides:
+;; Minimal journaling helpers in ~/org/areas/.
+;;
+;; DAILY JOURNAL (journal.org):
 ;;  - Capture template "j": Journal (today) → DateTree in journal.org
 ;;  - Command `my/journal-capture-today` (bound to C-c j)
 ;;  - (Optional) `my/journal-open-today` to jump to today's node
+;;
+;; LITERATURE NOTES (literature/ folder):
+;;  - Capture template "l": Literature → Creates new file per paper
+;;  - Each paper gets its own file in areas/literature/
+;;  - Filename: Authors-Year-Title.org
+;;  - Access via org-capture menu: C-c c → l
 ;; 
 ;; Based on Org Mode Guide section 8.1 (Timestamps) and 9.1 (Capture)
 
@@ -28,6 +35,11 @@
 (defvar my/org-journal-file (expand-file-name "areas/journal.org" org-directory)
   "Path to the journal file (DateTree) in the Areas directory.")
 
+;; Path to literature notes directory
+(defvar my/org-literature-dir 
+  (expand-file-name "areas/literature/" org-directory)
+  "Directory for individual literature note files.")
+
 ;; ============================================================================
 ;; FILE MANAGEMENT
 ;; ============================================================================
@@ -43,22 +55,60 @@
     (with-temp-file my/org-journal-file
       (insert "#+TITLE: Journal\n"))))
 
+(defun my/literature--ensure-dir ()
+  "Ensure the literature directory exists."
+  (unless (file-directory-p my/org-literature-dir)
+    (make-directory my/org-literature-dir t)))
+
+(defun my/literature--sanitize-filename (string)
+  "Convert STRING to a safe filename component."
+  (let ((s (replace-regexp-in-string "[^[:alnum:] -]" "" string)))
+    (replace-regexp-in-string "[ ]+" "-" (string-trim s))))
+
+(defun my/literature--capture-file ()
+  "Generate filename for literature capture based on user input.
+Prompts for authors, year, and title, then creates filename."
+  (my/literature--ensure-dir)
+  (let* ((authors (read-string "Authors: "))
+         (year (read-string "Year: "))
+         (title (read-string "Title: "))
+         (filename (format "%s-%s.org"
+                          (my/literature--sanitize-filename authors)
+                          year)))
+    ;; Store in temp variables for template expansion
+    (setq my/literature--temp-authors authors
+          my/literature--temp-year year
+          my/literature--temp-title title)
+    (expand-file-name filename my/org-literature-dir)))
+
+;; Temporary variables for capture template
+(defvar my/literature--temp-authors nil)
+(defvar my/literature--temp-year nil)
+(defvar my/literature--temp-title nil)
+
 ;; ============================================================================
 ;; CAPTURE TEMPLATE INTEGRATION
 ;; ============================================================================
 
-;; Add journal capture template to existing templates
+;; Add journal and literature capture templates to existing templates
 ;; Based on Org Mode Guide section 9.1
 (with-eval-after-load 'org
   (my/journal--ensure-file)
+  (my/literature--ensure-dir)
   (let ((journal-template '("j" "Journal (today)" entry
                            (file+datetree my/org-journal-file)
-                           "* %<%H:%M> %?\n")))
+                           "* %<%H:%M> %?\n"))
+        (literature-template '("l" "Literature" plain
+                              (file my/literature--capture-file)
+                              "#+TITLE: %(identity my/literature--temp-title)\n#+AUTHORS: %(identity my/literature--temp-authors)\n#+YEAR: %(identity my/literature--temp-year)\n#+DATE: %U\n#+SEQ_TODO: QUESTION(q) | ANSWERED(a)\n\n* Notes\n\n"
+                              :empty-lines 0
+                              :jump-to-captured t)))
     ;; Avoid duplicate templates
     (setq org-capture-templates 
-          (cons journal-template 
-                (cl-remove-if (lambda (tpl) (equal (car tpl) "j")) 
-                              (or org-capture-templates '()))))))
+          (cons journal-template
+                (cons literature-template
+                      (cl-remove-if (lambda (tpl) (member (car tpl) '("j" "l")))
+                                    (or org-capture-templates '())))))))
 
 ;; ============================================================================
 ;; JOURNAL FUNCTIONS
@@ -109,7 +159,10 @@ Creates the date node if it doesn't exist, then shows the entry."
 ;; NOTES
 ;; ============================================================================
 
-;; Journal is an Area; keep it out of agenda and let PARA refile settings apply globally
-;; This ensures the journal stays focused on daily entries rather than actionable tasks
+;; Both journal and literature are Areas; keep them out of agenda
+;; - Daily journal: focused on daily personal entries (DateTree)
+;; - Literature notes: one file per paper for detailed reading notes
 
 (provide 'journal)
+
+;;; journal.el ends here
