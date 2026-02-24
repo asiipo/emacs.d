@@ -115,6 +115,15 @@
 (global-set-key (kbd "C-c j") #'my/journal-capture-today)
 
 ;; ============================================================================
+;; LLM ASSISTANT KEYBINDINGS (disabled)
+;; ============================================================================
+
+;; (global-set-key (kbd "C-c l b") #'my/daily-briefing)         ;; Generate daily briefing
+;; (global-set-key (kbd "C-c l w") #'my/llm-quick-win)           ;; Quick win (30-min window)
+;; (global-set-key (kbd "C-c l c") #'gptel)                     ;; Open LLM chat buffer
+;; (global-set-key (kbd "C-c l p") #'my/llm-open-prompts)        ;; Open prompts directory
+
+;; ============================================================================
 ;; ADDITIONAL UTILITY KEYBINDINGS
 ;; ============================================================================
 
