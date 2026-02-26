@@ -252,6 +252,19 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
 (setq org-id-link-to-org-use-id 'create-if-interactive)
 
 ;; ============================================================================
+;; FILE ASSOCIATIONS - OPEN PDFs IN EMACS
+;; ============================================================================
+
+;; Force PDFs to open in Emacs with pdf-view-mode (not external applications)
+;; This prevents macOS from opening PDFs in Adobe/Preview
+(setq org-file-apps
+      '((auto-mode . emacs)
+        (directory . emacs)
+        ("\\.mm\\'" . default)
+        ("\\.x?html?\\'" . default)
+        ("\\.pdf\\'" . emacs)))  ;; Force PDFs to open in Emacs
+
+;; ============================================================================
 ;; TIME TRACKING (ORG-CLOCK)
 ;; ============================================================================
 
