@@ -1,82 +1,37 @@
-;;; config-loader.el --- Smart configuration loading system -*- lexical-binding: t; -*-
+;;; config-loader.el --- Configuration module loader -*- lexical-binding: t; -*-
 
-;; Author: Personal Configuration
-;; Version: 1.0
-;; Package-Requires: ((emacs "28.1"))
-;; Keywords: configuration, modules, error-handling
+;;; Commentary:
+;; Loads configuration modules with error handling and diagnostics.
+;; Use M-x my/diagnose-config for troubleshooting.
 
-;; This module provides robust configuration loading with error handling,
-;; performance monitoring, and diagnostic capabilities.
-;;
-;; Key Functions:
-;;   my/load-all-config-modules  - Load all modules with error reporting
-;;   my/diagnose-config          - Display system diagnostic information
-;;   my/load-config-module       - Load individual module (internal)
-;;
-;; Usage:
-;;   The config loader is automatically invoked by init.el
-;;   For manual diagnosis: M-x my/diagnose-config
-
-;; ============================================================================
-;; CONFIGURATION LOADING SYSTEM
-;; ============================================================================
+;;; Code:
 
 (defvar my/config-modules
-  '(;; === FOUNDATION LAYER ===
-    path-utils          ;; Cross-platform path utilities (must be first)
-    core-init          ;; Core Emacs optimization: performance, UI, editing, security
-    theme-config       ;; Custom face configurations for themes
-    
-    ;; === ORG MODE ECOSYSTEM ===
-    org-basic            ;; PARA structure, agenda, refile, archive
-    org-capture-config   ;; Capture templates and inbox workflow
-    org-agenda-config    ;; Agenda display and behavior
-    org-roam-config      ;; Org-roam networked note-taking
-    
-    ;; === SPECIALIZED FEATURES ===  
-    gtd                 ;; GTD daily tracking with routine management
-    reading-tracker     ;; Simple reading progress tracking
-    journal             ;; Daily journaling with datetree
-    dashboard           ;; Consolidated startup dashboard with time tracking
-    
-    ;; === EXTERNAL INTEGRATIONS ===
-    zotero-bibtex       ;; Zotero Better BibTeX integration
-    magit-config        ;; Git integration
-    spell-checking-config  ;; Modern spell checking with Jinx
-    latex-config        ;; LaTeX editing and preview
-    matlab-config       ;; MATLAB editing with platform-specific paths
-    ;; copilot-config      ;; GitHub Copilot AI code completion (disabled)
-    ;; llm-assistant       ;; Local LLM Morning Briefing agent (Ollama) (disabled)
-    
-    ;; === USER INTERFACE === (must be last)
-    modeline-config     ;; Clean mode line by hiding noisy minor modes
-    keybindings)        ;; Centralized global keybindings
-  "List of configuration modules to load in dependency order.
-Each module is loaded with error handling and progress reporting.")
+  '(;; Foundation
+    path-utils core-init theme-config
+    ;; Org mode
+    org-basic org-capture-config org-agenda-config org-roam-config
+    ;; Features
+    gtd reading-tracker journal dashboard
+    ;; Integrations
+    zotero-bibtex magit-config spell-checking-config
+    latex-config matlab-config julia-config
+    ;; UI (load last)
+    modeline-config keybindings)
+  "Configuration modules in load order.")
 
-(defvar my/config-module-cache (make-hash-table :test 'eq)
-  "Cache for loaded modules to prevent duplicate loading.")
-
-(defvar my/config-timing-data nil
-  "Detailed timing data for each module load.")
-
-(defvar my/config-total-load-time nil
-  "Total configuration load time in seconds.")
-
-(defvar my/config-failed-modules nil
-  "List of modules that failed to load with their error messages.")
-
-(defvar my/config-load-start-time nil
-  "Time when configuration loading started.")
+(defvar my/config-module-cache (make-hash-table :test 'eq))
+(defvar my/config-timing-data nil)
+(defvar my/config-total-load-time nil)
+(defvar my/config-failed-modules nil)
+(defvar my/config-load-start-time nil)
 
 (defun my/load-config-module (module)
-  "Load a configuration MODULE with error handling and timing."
-  ;; Check cache first
+  "Load MODULE with error handling and timing."
   (if (gethash module my/config-module-cache)
       (progn
         (message "⚡ Cached: %s" module)
         t)
-    ;; Load and time the module
     (let ((module-start-time (current-time)))
       (condition-case err
           (progn
@@ -133,23 +88,17 @@ Each module is loaded with error handling and progress reporting.")
             (message "  - %s: %s" (car failure) (cdr failure)))
           (message "Run M-x my/diagnose-config for troubleshooting help")))
       
-      ;; Store total load time for external access
       (setq my/config-total-load-time load-time)
-      
-      ;; Return success status
       (zerop failed-count))))
 
 (defun my/reload-config-module (module)
-  "Reload a specific configuration MODULE."
+  "Reload MODULE."
   (interactive 
    (list (intern (completing-read "Reload module: " 
                                   my/config-modules nil t))))
-  ;; Clear from cache
   (remhash module my/config-module-cache)
-  ;; Force unload if possible
   (when (featurep module)
     (unload-feature module t))
-  ;; Reload
   (if (my/load-config-module module)
       (message "✓ Reloaded: %s" module)
     (message "✗ Failed to reload: %s" module)))
@@ -167,14 +116,13 @@ Each module is loaded with error handling and progress reporting.")
     (message "No timing data available.")))
 
 (defun my/diagnose-config ()
-  "Provide essential diagnostic information for configuration issues."
+  "Display configuration diagnostic information."
   (interactive)
   (with-current-buffer (get-buffer-create "*Config Diagnosis*")
     (erase-buffer)
     (insert "🔍 Configuration Status\n")
     (insert "======================\n\n")
     
-    ;; Module summary
     (let* ((loaded-count (hash-table-count my/config-module-cache))
            (total-count (length my/config-modules))
            (load-time (when my/config-timing-data 
@@ -183,13 +131,11 @@ Each module is loaded with error handling and progress reporting.")
       (when load-time (insert (format " in %.3fs" load-time)))
       (insert "\n"))
     
-    ;; Only show failures if any exist
     (when my/config-failed-modules
       (insert "\n❌ Failed modules:\n")
       (dolist (failure my/config-failed-modules)
         (insert (format "  %s: %s\n" (car failure) (cdr failure)))))
     
-    ;; Only warn about slow modules if significantly slow
     (when my/config-timing-data
       (let ((slow-modules (seq-filter (lambda (timing) (> (cdr timing) 0.2)) 
                                      my/config-timing-data)))
@@ -198,7 +144,6 @@ Each module is loaded with error handling and progress reporting.")
           (dolist (timing slow-modules)
             (insert (format "  %s: %.3fs\n" (car timing) (cdr timing)))))))
     
-    ;; Critical issues only
     (let ((issues '()))
       (unless (> gc-cons-threshold (* 15 1000 1000))
         (push "GC threshold not optimized" issues))
@@ -218,18 +163,12 @@ Each module is loaded with error handling and progress reporting.")
     (goto-char (point-min))
     (display-buffer (current-buffer))))
 
-;; ============================================================================
-;; PUBLIC API FOR STARTUP TIMING
-;; ============================================================================
-
 (defun my/get-startup-time ()
-  "Get the total configuration load time in seconds.
-Returns nil if configuration hasn't been loaded yet."
+  \"Get configuration load time in seconds.\"
   my/config-total-load-time)
 
 (defun my/format-startup-time ()
-  "Format startup time for display.
-Returns a formatted string like '⚡ Loaded in 150 ms' or '⚡ Ready'."
+  \"Format startup time for display.\"
   (let ((load-time (my/get-startup-time)))
     (cond
      ((null load-time)

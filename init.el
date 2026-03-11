@@ -1,84 +1,29 @@
 ;;; init.el --- Main Emacs configuration -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Modular Emacs configuration using a centralized config-loader system.
-;; All functionality is organized into modules in the lisp/ directory.
-;; See lisp/config-loader.el for the list of loaded modules.
+;; Modular configuration. See lisp/config-loader.el for loaded modules.
 
 ;;; Code:
 
-;; ============================================================================
-;; CUSTOMIZATION AND PACKAGES
-;; ============================================================================
-
-;; Add our lisp directory to load path
+;; Add lisp directory to load path
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 
-;; Initialize package system and install required packages FIRST
+;; Initialize packages
 (require 'packages)
 
-;; THEN load custom.el after packages are available
+;; Load customizations
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 (when (file-exists-p custom-file)
-  (load custom-file t))  ;; load quietly if present
+  (load custom-file t))
 
-;; ============================================================================
-;; ORG MODE SETUP
-;; ============================================================================
-
-;; Central Org location for all modules (see org-basic.el for usage)
-(defvar org-directory (expand-file-name "~/org")
-  "Base directory for all Org files and PARA structure.")
-
-;; Load Org early so all modules can rely on it
-(unless (require 'org nil t)
-  (message "Warning: Org mode not available at startup"))
-
-;; ============================================================================
-;; MODULE LOADING
-;; ============================================================================
-
-;; Load the centralized config loader first
+;; Load all configuration modules
 (require 'config-loader)
+(my/load-all-config-modules)
 
-;; Use the centralized config loader for better error handling  
-(unless (my/load-all-config-modules)
-  (message "⚠️  Some modules failed to load. Run M-x my/diagnose-config for details."))
-
-;; ============================================================================
-;; POST-STARTUP OPTIMIZATIONS
-;; ============================================================================
-
-;; Reset GC threshold after startup (was increased in early-init.el)
+;; Reset GC threshold after startup
 (add-hook 'emacs-startup-hook
           (lambda ()
-            (setq gc-cons-threshold (* 2 1024 1024))))  ; 2 MB
-
-;; ============================================================================
-;; FILE MANAGEMENT
-;; ============================================================================
-
-;; Version control: don't create backup files for Git-managed files
-(setq vc-make-backup-files nil)
-
-;; ============================================================================
-;; PLATFORM-SPECIFIC SETTINGS
-;; ============================================================================
-
-(when (eq system-type 'darwin)
-  ;; On macOS, use left Option as Meta, disable right Option as Meta
-  (setq mac-option-modifier 'meta
-        mac-right-option-modifier nil))
-
-;; ============================================================================
-;; STARTUP COMPLETE
-;; ============================================================================
-
-(message "✓ Emacs configuration loaded successfully!")
-
-;; ============================================================================
-;; END OF INIT.EL
-;; ============================================================================
+            (setq gc-cons-threshold (* 2 1024 1024))))
 
 (provide 'init)
 ;;; init.el ends here

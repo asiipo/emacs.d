@@ -6,9 +6,7 @@
 
 ;;; Code:
 
-;; ============================================================================
 ;; MATLAB MODE SETUP
-;; ============================================================================
 
 ;; Ensure matlab-mode is available (install via package.el if needed)
 (unless (package-installed-p 'matlab-mode)
@@ -16,9 +14,7 @@
 
 (require 'matlab-mode)
 
-;; ============================================================================
 ;; PLATFORM-SPECIFIC PATHS
-;; ============================================================================
 
 ;; WSL: Custom MATLAB path
 (when (and (eq system-type 'gnu/linux)
@@ -28,9 +24,7 @@
 ;; macOS: Uses system default (already works correctly)
 ;; No configuration needed
 
-;; ============================================================================
 ;; MATLAB MODE SETTINGS
-;; ============================================================================
 
 ;; File associations
 (add-to-list 'auto-mode-alist '("\\.m\\'" . matlab-mode))

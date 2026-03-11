@@ -1,35 +1,23 @@
 ;;; org-basic.el --- Org mode basic configuration -*- lexical-binding: t; -*-
-
-;; Version: 1.0
-;; Author: arttusii
-;; Description: Fundamental Org mode settings for document structure and behavior
-;;
-;; Key Features:
-;;   - Visual enhancements (org-indent, headlines styling)
-;;   - Better list handling and structure editing
-;;   - Improved source block editing experience
-;;
-;; Dependencies: Built-in Org mode packages only
+;;; Commentary:
+;; Fundamental Org mode settings: PARA structure, TODO workflow, agenda, and archiving.
 
 (require 'subr-x)
 
-;; ============================================================================
-;; PARA DIRECTORY STRUCTURE
-;; ============================================================================
+;; Org Directory
 
-;; Ensure main PARA directories exist
+(defvar org-directory (expand-file-name "~/org")
+  "Base directory for all Org files and PARA structure.")
+
+(require 'org)
+
+;; PARA Directory Structure
 (dolist (d '("projects" "areas" "resources" "archive"))
   (make-directory (expand-file-name d org-directory) t))
-
-;; Ensure archive subfolders for organized archiving
 (dolist (d '("archive/projects" "archive/areas" "archive/resources"))
   (make-directory (expand-file-name d org-directory) t))
 
-;; ============================================================================
-;; AGENDA CONFIGURATION
-;; ============================================================================
-
-;; Dynamic agenda files function to always include new files
+;; Agenda Configuration
 (defun my/org-agenda-files ()
   "Return list of org files for agenda scanning.
 Restricted to inbox.org and gtd.org to keep buffers clean."
@@ -38,11 +26,9 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
     (delete-dups (delq nil (list (when (file-exists-p inbox) inbox)
                                  (when (file-exists-p gtd) gtd))))))
 
-;; Set agenda files to use the dynamic function
 (setq org-agenda-files-function #'my/org-agenda-files
       org-agenda-files (my/org-agenda-files))
 
-;; Auto-refresh agenda after capture
 (with-eval-after-load 'org-capture
   (add-hook 'org-capture-after-finalize-hook 
             (lambda () 
@@ -50,46 +36,30 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
                 (with-current-buffer "*Org Agenda*"
                   (org-agenda-redo))))))
 
-;; ============================================================================
-;; ORG BUFFER BEHAVIOR
-;; ============================================================================
+;; Org Buffer Behavior
+(add-hook 'org-mode-hook #'visual-line-mode)
+(add-hook 'org-mode-hook #'org-indent-mode)
 
-;; Editing niceties inside Org buffers
-(add-hook 'org-mode-hook #'visual-line-mode)  ;; Soft-wrap long lines at word boundary
-(add-hook 'org-mode-hook #'org-indent-mode)   ;; Visual indentation mirroring outline
-
-;; ============================================================================
-;; TODO WORKFLOW AND LOGGING
-;; ============================================================================
-
-;; Multi-state workflow: TODO -> NEXT -> WAIT -> DONE/CANCELED
-;; Based on Org Mode Guide section 5.2
+;; TODO Workflow and Logging
 (setq org-todo-keywords '((sequence "TODO(t)" "NEXT(n)" "WAIT(w)" "|" "DONE(d)" "CANCELED(c)"))
       org-use-fast-todo-selection t
       org-enforce-todo-dependencies t
       org-enforce-todo-checkbox-dependencies t
       org-log-done 'time
-      org-log-redeadline 'time                  ;; Log when deadlines change
-      org-log-reschedule 'time                  ;; Log when tasks are rescheduled
+      org-log-redeadline 'time
+      org-log-reschedule 'time
       org-log-into-drawer t
-      org-log-state-notes-into-drawer t         ;; Store state change notes in drawer
+      org-log-state-notes-into-drawer t
       org-priority-default ?C
       org-priority-highest ?A
       org-priority-lowest ?C)
 
-;; Enable habit tracking for recurring tasks
 (add-to-list 'org-modules 'org-habit)
 (require 'org-habit)
 
-;; Stuck project detection (Guide section 10.4)
 (setq org-stuck-projects '("project" ("TODO" "NEXT") nil ""))
 
-;; ============================================================================
-;; TAGS AND PRIORITIES
-;; ============================================================================
-
-;; PARA-friendly tags for organizing work and life
-;; Based on Org Mode Guide section 6
+;; Tags and Priorities
 (setq org-tag-alist
       '((:startgroup . nil)
         (:endgroup . nil)
@@ -102,12 +72,9 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
         (:newline)
         ("meeting" . ?m) ("phone" . ?P) ("email" . ?e)))
 
-;; Fast tag selection
 (setq org-fast-tag-selection-single-key t)
 
-;; ============================================================================
-;; INBOX FUNCTION
-;; ============================================================================
+;; Inbox Functions
 
 (defun my/goto-inbox ()
   "Open the inbox.org file for quick access."
@@ -128,15 +95,7 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
       (org-agenda-redo)
       (message "Agenda refreshed!"))))
 
-;; ============================================================================
-;; GLOBAL KEYBINDINGS
-;; ============================================================================
-
-;; Keybindings are now centralized in keybindings.el
-
-;; ============================================================================
-;; PARA-AWARE FILE ARCHIVING SYSTEM
-;; ============================================================================
+;; PARA-Aware File Archiving System
 
 (defun my/org-archive-file ()
   "Move the current Org file into the appropriate archive subfolder, with confirmation."
@@ -145,7 +104,6 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
     (user-error "Not in an Org buffer"))
   (let* ((src (or buffer-file-name (user-error "Buffer not visiting a file")))
          (file-name (file-name-nondirectory src))
-         ;; Determine archive subdirectory based on source location
          (subdir (cond
                   ((string-match-p "/projects/" src) "projects")
                   ((string-match-p "/areas/" src) "areas")  
@@ -155,7 +113,6 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
                          (expand-file-name "archive" org-directory)
                        (expand-file-name (concat "archive/" subdir) org-directory)))
          (dest (expand-file-name file-name archive-dir)))
-    ;; Add timestamp if file exists to avoid conflicts
     (when (file-exists-p dest)
       (setq dest (expand-file-name
                   (format "%s-%s%s"
@@ -171,7 +128,6 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
       (find-file dest)
       (message "Archived to: %s" dest))))
 
-;; Archive keybindings - simplified to one key
 (with-eval-after-load 'org
   (define-key org-mode-map (kbd "C-c C-x a") #'my/org-archive-file))
 (with-eval-after-load 'org-agenda
@@ -191,29 +147,20 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
         (my/org-archive-file))))
   (org-agenda-redo))
 
-
-;; ============================================================================
-;; ORG APPEARANCE AND BEHAVIOR
-;; ============================================================================
-
-;; Visual appearance settings
+;; Org Appearance and Behavior
 (setq org-ellipsis " ▾"
       org-hide-emphasis-markers t
       org-pretty-entities t
       org-startup-folded 'content
       org-image-actual-width 600)
 
-;; Enable easy templates (e.g., <s TAB for source blocks)
 (require 'org-tempo)
 
-;; Pretty bullets for org headings
 (use-package org-bullets
   :ensure t
   :hook (org-mode . org-bullets-mode))
-  ;; :config
-  ;; (setq org-bullets-bullet-list '("◉" "○" "✸" "✿")))
 
-;; Configure Python interpreter for Org Babel (cross-platform)
+;; Configure Python for Org Babel
 (defun my/find-python-executable ()
   "Find the best Python executable across different platforms."
   (or 
@@ -229,16 +176,14 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
     ((eq system-type 'windows-nt) "python.exe")
     (t "python3"))))
 
-;; Set Python interpreter if default detection fails
+
 (unless (executable-find "python3")
   (let ((python-exec (my/find-python-executable)))
     (setq org-babel-python-command python-exec
           python-shell-interpreter python-exec)))
 
-;; Configure Fortran compiler (using gfortran)
 (setq org-babel-fortran-compiler "gfortran")
 
-;; Source code evaluation (see Org Mode Guide section 14)
 (setq org-confirm-babel-evaluate nil)
 (org-babel-do-load-languages
  'org-babel-load-languages
@@ -247,60 +192,36 @@ Restricted to inbox.org and gtd.org to keep buffers clean."
    (shell . t)
    (fortran . t)))
 
-;; Stable links for reliable references (see Org Mode Guide section 4)
 (require 'org-id)
 (setq org-id-link-to-org-use-id 'create-if-interactive)
 
-;; ============================================================================
-;; FILE ASSOCIATIONS - OPEN PDFs IN EMACS
-;; ============================================================================
-
-;; Force PDFs to open in Emacs with pdf-view-mode (not external applications)
-;; This prevents macOS from opening PDFs in Adobe/Preview
+;; File Associations
 (setq org-file-apps
       '((auto-mode . emacs)
         (directory . emacs)
         ("\\.mm\\'" . default)
         ("\\.x?html?\\'" . default)
-        ("\\.pdf\\'" . emacs)))  ;; Force PDFs to open in Emacs
+        ("\\.pdf\\'" . emacs)))
 
-;; ============================================================================
-;; TIME TRACKING (ORG-CLOCK)
-;; ============================================================================
-
-;; Enable persistent clock - remember clocks across Emacs sessions
+;; Time Tracking (Org-Clock)
 (setq org-clock-persist t)
 (org-clock-persistence-insinuate)
 
-;; Clock behavior
-(setq org-clock-in-resume t                      ; Resume interrupted clocks
-      org-clock-persist-query-resume nil         ; Don't ask about resuming
-      org-clock-out-remove-zero-time-clocks t    ; Remove zero-time entries
-      org-clock-report-include-clocking-task t   ; Show active clock in reports
-      org-clock-history-length 10                ; Remember last 10 clocked tasks
-      org-clock-mode-line-total 'current)        ; Display current task time in mode line
+(setq org-clock-in-resume t
+      org-clock-persist-query-resume nil
+      org-clock-out-remove-zero-time-clocks t
+      org-clock-report-include-clocking-task t
+      org-clock-history-length 10
+      org-clock-mode-line-total 'current)
 
-;; ============================================================================
-;; REFILE CONFIGURATION
-;; ============================================================================
-
-;; Simple refile configuration using agenda files
+;; Refile Configuration
 (setq org-refile-use-outline-path 'file
       org-outline-path-complete-in-steps nil
       org-refile-allow-creating-parent-nodes 'confirm
       org-refile-targets '((org-agenda-files :maxlevel . 3)
                           (nil :maxlevel . 9)))
 
-;; ============================================================================
-;; EXPORT CONFIGURATION
-;; ============================================================================
-
-;; Load Beamer exporter (required for C-c C-e l P/B options)
+;; Export Configuration
 (require 'ox-beamer)
-
-;; To use Beamer export:
-;; 1. Add to your org file: #+LATEX_CLASS: beamer
-;; 2. Export with: C-c C-e l P (LaTeX → Beamer PDF)
-;; 3. To use a custom .sty, add #+LATEX_HEADER: \usepackage{mybeamer} in your file
 
 (provide 'org-basic)

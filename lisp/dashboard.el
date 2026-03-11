@@ -1,12 +1,8 @@
 ;;; dashboard.el --- Consolidated dashboard functionality -*- lexical-binding: t; -*-
-
 ;;; Commentary:
-;; This module provides a consolidated dashboard interface for the personal
-;; workspace, including reading progress, key bindings, and system status.
+;; Dashboard interface with reading progress, keybindings, and system status.
 
-;; ============================================================================
-;; DEPENDENCIES
-;; ============================================================================
+;;; Code:
 
 (require 'org)
 (require 'org-table)
@@ -14,9 +10,7 @@
 (require 'subr-x)
 (require 'svg-lib nil t)
 
-;; ============================================================================
 ;; CUSTOMIZATION GROUP
-;; ============================================================================
 
 (defgroup dashboard nil
   "Consolidated dashboard interface for personal workspace."
@@ -53,9 +47,7 @@ Set to 0 to disable caching."
   :type 'integer
   :group 'dashboard)
 
-;; ============================================================================
 ;; INBOX STATUS DISPLAY
-;; ============================================================================
 
 (defconst dashboard--seconds-per-day 86400
   "Number of seconds in a day (24 * 60 * 60).")
@@ -309,9 +301,7 @@ Optional FACE specifies the text face."
                 'face (or face 'link)
                 'font-lock-face (or face 'link))))
 
-;; ============================================================================
 ;; COLUMN LAYOUT UTILITIES
-;; ============================================================================
 
 (defun dashboard--truncate-string (str max-length &optional ellipsis)
   "Truncate STR to MAX-LENGTH, adding ELLIPSIS if truncated.
@@ -350,9 +340,7 @@ If TIME is nil, use current time. Returns a time value."
         dashboard--events-by-date nil
         dashboard--deadlines-by-date nil))
 
-;; ============================================================================
 ;; ORG-AGENDA BASED DATA FETCHING
-;; ============================================================================
 
 (defun dashboard--agenda-cache-valid-p ()
   "Check if the agenda cache is still valid (TTL-based)."
@@ -693,9 +681,7 @@ WIDTH and HEIGHT specify the SVG canvas size."
                 (insert "\n")))))
       (insert (format "\n  No events scheduled in the next %d days\n" dashboard-upcoming-events-days)))))
 
-;; ============================================================================
 ;; READING PROGRESS DISPLAY
-;; ============================================================================
 
 (defun dashboard--insert-reading-progress ()
   "Insert reading progress into dashboard in a compact format."
@@ -741,9 +727,7 @@ WIDTH and HEIGHT specify the SVG canvas size."
         (insert "\n📚 No books currently being read\n\n")))))
 
 
-;; ============================================================================
 ;; DASHBOARD MODE
-;; ============================================================================
 
 ;; Hook run when dashboard is refreshed
 (defvar dashboard-refresh-hook nil
@@ -761,9 +745,7 @@ Shows reading progress, time tracking, key bindings, and quick access to importa
   (define-key dashboard-mode-map (kbd "g") #'dashboard-refresh)
   (define-key dashboard-mode-map (kbd "q") #'quit-window))
 
-;; ============================================================================
 ;; GIT STATUS HELPER
-;; ============================================================================
 
 (defvar dashboard--git-status-cache nil
   "Cached git status. Structure: (timestamp . status-string).")
@@ -810,9 +792,7 @@ Cache expires after `dashboard-git-status-cache-ttl' seconds."
       (setq dashboard--git-status-cache (cons (float-time) status))
       status)))
 
-;; ============================================================================
 ;; CHEATSHEET RENDERING
-;; ============================================================================
 
 (defun dashboard--render-keybindings ()
   "Render the key bindings section in a 2x2 grid layout."
@@ -867,9 +847,7 @@ Cache expires after `dashboard-git-status-cache-ttl' seconds."
                               (format "%-15s %s" (nth 0 system-row) (nth 1 system-row))
                             ""))))))))
 
-;; ============================================================================
 ;; HABIT TRACKING
-;; ============================================================================
 
 (defun dashboard--habit-cache-valid-p ()
   "Check if the habit cache is still valid.
@@ -1449,9 +1427,7 @@ Dispatches to SVG or text renderer based on svg-lib availability."
       ))))      
         ;;(insert "\n")))))
 
-;; ============================================================================
 ;; MAIN DASHBOARD FUNCTIONS
-;; ============================================================================
 
 (defun dashboard-render ()
   "Render the complete dashboard content in the current buffer."
@@ -1521,9 +1497,7 @@ Invalidates habit and agenda caches to ensure fresh data."
     (dashboard-render)
     (dashboard--log "=== Dashboard refresh complete ===")))
 
-;; ============================================================================
 ;; PUBLIC ALIASES & STARTUP CONFIGURATION
-;; ============================================================================
 
 ;; Show dashboard on startup
 (add-hook 'emacs-startup-hook

@@ -1,13 +1,6 @@
 ;;; zotero-bibtex.el --- Minimal Zotero Better BibTeX integration -*- lexical-binding: t; -*-
-
-;; Version: 6.0 - Streamlined
-;; Author: arttusii
-;; Description: Essential Zotero bibliography utilities for org-roam
-
 ;;; Commentary:
-;;
-;; Minimal Zotero integration for org-roam using Better BibTeX auto-export.
-;; Provides bibliography file path and basic utilities.
+;; Zotero integration for org-roam using Better BibTeX auto-export.
 
 ;;; Code:
 

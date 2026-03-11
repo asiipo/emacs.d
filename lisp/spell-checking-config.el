@@ -1,13 +1,6 @@
 ;;; spell-checking-config.el --- Modern spell checking with Jinx -*- lexical-binding: t; -*-
-
-;; Version: 2.0 - Streamlined
-;; Author: arttusii
-;; Description: Essential Jinx spell checking for org-roam
-
 ;;; Commentary:
-;;
-;; Minimal Jinx spell checking setup with English/Finnish support.
-;; Requires: brew install enchant (macOS)
+;; Jinx spell checking with English/Finnish. Requires: brew install enchant (macOS)
 
 ;;; Code:
 

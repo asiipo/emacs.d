@@ -1,35 +1,17 @@
 ;;; journal.el --- DateTree journal and literature notes -*- lexical-binding: t; -*-
-
 ;;; Commentary:
-;; Minimal journaling helpers in ~/org/areas/.
-;;
-;; DAILY JOURNAL (journal.org):
-;;  - Capture template "j": Journal (today) → DateTree in journal.org
-;;  - Command `my/journal-capture-today` (bound to C-c j)
-;;  - (Optional) `my/journal-open-today` to jump to today's node
-;;
-;; LITERATURE NOTES (literature/ folder):
-;;  - Capture template "l": Literature → Creates new file per paper
-;;  - Each paper gets its own file in areas/literature/
-;;  - Filename: Authors-Year-Title.org
-;;  - Access via org-capture menu: C-c c → l
-;; 
-;; Based on Org Mode Guide section 8.1 (Timestamps) and 9.1 (Capture)
+;; Daily journal (journal.org) and literature notes (areas/literature/).
 
 ;;; Code:
 
-;; ============================================================================
 ;; DEPENDENCIES
-;; ============================================================================
 
 (require 'org)
 (require 'org-datetree)
 (require 'subr-x)
 (require 'cl-lib)
 
-;; ============================================================================
 ;; CONFIGURATION
-;; ============================================================================
 
 ;; Path to journal file in Areas directory
 (defvar my/org-journal-file (expand-file-name "areas/journal.org" org-directory)
@@ -40,9 +22,7 @@
   (expand-file-name "areas/literature/" org-directory)
   "Directory for individual literature note files.")
 
-;; ============================================================================
 ;; FILE MANAGEMENT
-;; ============================================================================
 
 (defun my/journal--ensure-file ()
   "Create the journal file with proper structure if it doesn't exist."
@@ -86,9 +66,7 @@ Prompts for authors, year, and title, then creates filename."
 (defvar my/literature--temp-year nil)
 (defvar my/literature--temp-title nil)
 
-;; ============================================================================
 ;; CAPTURE TEMPLATE INTEGRATION
-;; ============================================================================
 
 ;; Add journal and literature capture templates to existing templates
 ;; Based on Org Mode Guide section 9.1
@@ -110,9 +88,7 @@ Prompts for authors, year, and title, then creates filename."
                       (cl-remove-if (lambda (tpl) (member (car tpl) '("j" "l")))
                                     (or org-capture-templates '())))))))
 
-;; ============================================================================
 ;; JOURNAL FUNCTIONS
-;; ============================================================================
 
 (defun my/journal-capture-today ()
   "Capture a journal entry into today's DateTree using template 'j'.
@@ -149,15 +125,11 @@ Creates the date node if it doesn't exist, then shows the entry."
                      (read-string "Search journal: ") 
                      my/org-journal-file))))))
 
-;; ============================================================================
 ;; KEYBINDINGS
-;; ============================================================================
 
 ;; Keybindings are now centralized in keybindings.el
 
-;; ============================================================================
 ;; NOTES
-;; ============================================================================
 
 ;; Both journal and literature are Areas; keep them out of agenda
 ;; - Daily journal: focused on daily personal entries (DateTree)

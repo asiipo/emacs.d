@@ -1,21 +1,10 @@
 ;;; modeline-config.el --- Clean mode line configuration -*- lexical-binding: t; -*-
-
 ;;; Commentary:
-;; This module configures the mode line to hide noisy minor mode indicators
-;; while keeping useful information visible. Uses diminish to selectively
-;; hide or shorten minor mode names.
+;; Hide noisy minor mode indicators using diminish.
 
 ;;; Code:
 
 (require 'diminish)
-
-;; ============================================================================
-;; HIDE NOISY MINOR MODES
-;; ============================================================================
-
-;; These modes are always active and clutter the mode line without adding value
-
-;; Org-roam and related modes
 (with-eval-after-load 'org-roam
   (diminish 'org-roam-mode))
 
@@ -40,9 +29,7 @@
 (with-eval-after-load 'vc
   (diminish 'vc-mode))                 ; Version control indicator
 
-;; ============================================================================
 ;; SHORTEN USEFUL MODES (keep visible but shorter)
-;; ============================================================================
 
 ;; These modes are useful to see, but we'll use shorter names
 
@@ -54,12 +41,22 @@
 (with-eval-after-load 'copilot
   (diminish 'copilot-mode " 🤖"))     ; Robot emoji indicates Copilot active
 
+;; Julia REPL integration
+(with-eval-after-load 'julia-repl
+  (diminish 'julia-repl-mode))        ; Hide REPL mode indicator
+
+;; Code completion
+(with-eval-after-load 'company
+  (diminish 'company-mode))           ; Hide company-mode indicator
+
+;; LSP server (eglot) - keep visible but shorten
+(with-eval-after-load 'eglot
+  (diminish 'eglot--managed-mode " LSP")) ; Show LSP when connected
+
 ;; If you add more modes later, you can shorten them like this:
 ;; (diminish 'some-mode " Short")     ; Shows " Short" instead of full name
 
-;; ============================================================================
 ;; MODE LINE FORMAT TWEAKS
-;; ============================================================================
 
 ;; Optional: Simplify the mode line format slightly
 ;; Keep buffer name, major mode, position, but clean up the rest
@@ -70,9 +67,7 @@
          ("%l" (column-number-mode ":%c")))
         (-3 "%p")))  ; Show percentage through buffer
 
-;; ============================================================================
 ;; DOCUMENTATION
-;; ============================================================================
 
 ;; To hide additional modes later, add lines like:
 ;;   (with-eval-after-load 'package-name

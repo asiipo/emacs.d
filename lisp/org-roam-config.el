@@ -1,8 +1,6 @@
 ;;; org-roam-config.el --- Org-roam v2 configuration -*- lexical-binding: t; -*-
-
 ;;; Commentary:
-;; This module configures Org-roam v2 with bibliography integration (org-roam-bibtex)
-;; and interactive visualization (org-roam-ui) for building a knowledge management system.
+;; Org-roam with bibliography integration and visualization.
 
 (eval-when-compile
   (declare-function orb--new-note "org-roam-bibtex"))
@@ -14,14 +12,10 @@
   :ensure t
   :defer t
   :custom
-  ;; Directory configuration - keep database WITH roam files
   (org-roam-directory (file-truename "~/org/resources/roam"))
   (org-roam-db-location (file-truename "~/org/resources/roam/org-roam.db"))
   (org-roam-completion-everywhere t)
-  ;; Simple display template - just show the title
   (org-roam-node-display-template "${title}")
-  
-  ;; Default capture template for general notes
   (org-roam-capture-templates
    '(("d" "default" plain "%?"
       :if-new (file+head "main/%<%Y%m%d%H%M%S>-${slug}.org"
@@ -29,20 +23,17 @@
       :unnarrowed t)))
   
   :config
-  ;; Enable autosync mode to keep database up-to-date
   (org-roam-db-autosync-mode)
 
-  ;; Ensure capture subdirectories exist
   (dolist (subdir '("main" "article"))
     (make-directory (expand-file-name subdir org-roam-directory) t))
   
-  ;; Helper function to open roam directory
   (defun my/org-roam-open-directory ()
     "Open org-roam directory in dired."
     (interactive)
     (dired org-roam-directory))
   
-  ;; Tag-aware helpers ----------------------------------------------------
+  ;; Tag-aware helpers
   (defun my/org-roam--all-tags ()
     "Return a list of all tags in the Org-roam database."
     (seq-uniq
@@ -56,15 +47,12 @@
                         (lambda (node)
                           (member tag (org-roam-node-tags node))))))
 
-;; ============================================================================
-;; ORG-ROAM-BIBTEX INTEGRATION
-;; ============================================================================
+;; Org-Roam-Bibtex Integration
 
 (use-package org-roam-bibtex
   :ensure t
   :after org-roam
   :custom
-  ;; Bibliography configuration
   (orb-roam-ref-format 'org-cite)
   (orb-preformat-keywords '("citekey" "title" "author" "year" "url" "file"))
   (orb-process-file-keyword t)
@@ -75,7 +63,6 @@
   :config
   (org-roam-bibtex-mode)
 
-  ;; Bibliography-specific capture template
   (defvar my/orb-roam-capture-template
     '(("r" "reference" plain "%?"
        :if-new (file+head "article/%<%Y%m%d%H%M%S>-${slug}.org"
@@ -83,7 +70,6 @@
        :unnarrowed t))
     "Capture template for bibliography-driven notes.")
 
-  ;; Ensure ORB uses the bibliography template
   (defun my/orb--use-reference-template (orig-fn &rest args)
     "Use bibliography-specific template for ORB captures."
     (let ((org-roam-capture-templates my/orb-roam-capture-template))
@@ -92,9 +78,7 @@
   (unless (advice-member-p #'my/orb--use-reference-template 'orb--new-note)
     (advice-add 'orb--new-note :around #'my/orb--use-reference-template)))
 
-;; ============================================================================
-;; ORG-ROAM-UI VISUALIZATION
-;; ============================================================================
+;; Org-Roam-UI Visualization
 
 (use-package org-roam-ui
   :ensure t
@@ -105,11 +89,7 @@
   (org-roam-ui-update-on-save t)
   (org-roam-ui-open-on-start t))
 
-;; ============================================================================
-;; DISPLAY CONFIGURATION
-;; ============================================================================
-
-;; Configure backlinks sidebar display
+;; Display Configuration
 (add-to-list 'display-buffer-alist
              '("\\*org-roam\\*"
                (display-buffer-in-direction)

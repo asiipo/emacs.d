@@ -1,16 +1,10 @@
 ;;; latex-config.el --- LaTeX editing and preview configuration -*- lexical-binding: t; -*-
+;;; Commentary:
+;; AUCTeX configuration with preview and compilation support.
 
-;; ============================================================================
-;; DEPENDENCIES
-;; ============================================================================
+;;; Code:
 
-(require 'path-utils)  ;; Cross-platform path management
-
-;; ============================================================================
-;; AUCTEX CONFIGURATION
-;; ============================================================================
-
-;; Only configure LaTeX if AucTeX is available
+(require 'path-utils)
 (when (or (package-installed-p 'auctex)
           (file-exists-p "/usr/share/emacs/site-lisp/auctex/auctex.el")
           (file-directory-p "/opt/homebrew/share/emacs/site-lisp/auctex"))
@@ -114,9 +108,7 @@
   ;; Optional packages (company-auctex, cdlatex, pdf-tools) are configured if available
   )
 
-;; ============================================================================
 ;; ORG-MODE LATEX PREVIEW CONFIGURATION (outside AUCTeX block)
-;; ============================================================================
 
 ;; Apply to all org files, including org-roam
 (with-eval-after-load 'org
@@ -130,9 +122,7 @@
   ;; Auto-preview disabled to prevent startup slowdown when loading many org files
   (setq org-startup-with-latex-preview nil))
 
-;; ============================================================================
 ;; UTILITY FUNCTIONS
-;; ============================================================================
 
 (defun my/latex-word-count ()
   "Count words in current LaTeX document using texcount."
@@ -159,9 +149,7 @@
             (local-set-key (kbd "C-c l w") #'my/latex-word-count)
             (local-set-key (kbd "C-c l c") #'my/latex-clean-aux-files)))
 
-;; ============================================================================
 ;; INFORMATION & USAGE
-;; ============================================================================
 
 ;; This configuration provides:
 ;; - Cross-platform AUCTeX setup with graceful fallback

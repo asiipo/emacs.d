@@ -1,52 +1,35 @@
 ;;; org-agenda-config.el --- Agenda display and behavior -*- lexical-binding: t; -*-
-
 ;;; Commentary:
-;; This module configures Org Agenda with custom commands, display settings,
-;; and keybindings for an efficient task management workflow.
-
-;; ============================================================================
-;; AGENDA INITIALIZATION
-;; ============================================================================
+;; Org Agenda custom commands, display settings, and keybindings.
 
 (with-eval-after-load 'org-agenda
-  ;; Enable habits for tracking recurring tasks
   (require 'org-habit)
   (add-to-list 'org-modules 'org-habit)
   
-  ;; ============================================================================
-  ;; AGENDA DISPLAY SETTINGS
-  ;; ============================================================================
-  
-  ;; Basic agenda configuration
-  (setq org-agenda-span 'week                    ;; Show week view by default
-        org-agenda-start-on-weekday nil          ;; Start on current day
-        org-deadline-warning-days 7              ;; Warn 7 days before deadline
-        org-agenda-compact-blocks t              ;; Compact agenda display
-        org-agenda-window-setup 'current-window  ;; Use current window
-        org-agenda-format-date-aligned t         ;; Align dates nicely
-        org-agenda-show-future-repeats 'next     ;; Show next repeat only
-        org-agenda-dim-blocked-tasks t           ;; Dim blocked tasks
-        org-agenda-use-time-grid t               ;; Show time grid
+  ;; Agenda Display Settings
+  (setq org-agenda-span 'week
+        org-agenda-start-on-weekday nil
+        org-deadline-warning-days 7
+        org-agenda-compact-blocks t
+        org-agenda-window-setup 'current-window
+        org-agenda-format-date-aligned t
+        org-agenda-show-future-repeats 'next
+        org-agenda-dim-blocked-tasks t
+        org-agenda-use-time-grid t
         org-agenda-time-grid '((daily today require-timed remove-match)
-                              (600 900 1200 1500 1800 2100)  ;; 3-hour intervals
+                              (600 900 1200 1500 1800 2100)
                               "      "
-                              "┈┈┈┈┈┈┈┈┈┈┈┈┈")  ;; Consistent box-drawing time grid
-        org-agenda-todo-ignore-with-date nil     ;; Show todos with dates
+                              "┈┈┈┈┈┈┈┈┈┈┈┈┈")
+        org-agenda-todo-ignore-with-date nil
         org-agenda-tags-todo-honor-ignore-options t
-        org-agenda-breadcrumbs-separator " ❱ "    ;; Hierarchy separator
-        
-        ;; Visual polish - minimal, modern aesthetic
-        org-agenda-block-separator (string-to-char " ")  ;; Minimal separator
-        org-agenda-hidden-separator "‌‌ "                 ;; Zero-width spaces
-        org-agenda-current-time-string "ᐊ┈┈┈┈┈┈┈ Now"    ;; Unicode time marker
-        org-agenda-scheduled-leaders '("" "")            ;; Hide "Scheduled:"
+        org-agenda-breadcrumbs-separator " ❱ "
+        org-agenda-block-separator (string-to-char " ")
+        org-agenda-hidden-separator "‌‌ "
+        org-agenda-current-time-string "ᐊ┈┈┈┈┈┈┈ Now"
+        org-agenda-scheduled-leaders '("" "")
         org-agenda-deadline-leaders '("Deadline:  " "In %3d d.: " "%2d d. ago: "))
 
-  ;; ============================================================================
-  ;; CUSTOM AGENDA COMMANDS
-  ;; ============================================================================
-  
-  ;; Simplified agenda views with modern visual style
+  ;; Custom Agenda Commands
   (setq org-agenda-custom-commands
         '(("d" "Daily agenda"
            ((todo "TODO" ((org-agenda-overriding-header "\n⚡ Do Today")
@@ -73,7 +56,7 @@
                           (org-agenda-sorting-strategy '(priority-down))
                           (org-agenda-remove-tags t)
                           (org-agenda-skip-function '(org-agenda-skip-entry-if 'regexp ":STYLE:.*habit"))
-                          (org-agenda-prefix-format "   %-2i %?b")
+                          (org-agenda-prefix-format "   %-2i ")
                           (org-agenda-todo-keyword-format "")))
             (agenda "" ((org-agenda-span 7)
                         (org-agenda-skip-scheduled-if-done nil)
@@ -86,14 +69,18 @@
           
           ("t" "All TODO items" todo "TODO"
            ((org-agenda-overriding-header "\n⚡ All To Do Items")
-            (org-agenda-skip-function '(org-agenda-skip-entry-if 'regexp ":STYLE:.*habit"))))
+            (org-agenda-skip-function '(org-agenda-skip-entry-if 'regexp ":STYLE:.*habit"))
+            (org-agenda-remove-tags t)
+            (org-agenda-prefix-format "   %-2i ")
+            (org-agenda-todo-keyword-format "")))
           
           ("n" "Next actions" todo "NEXT"
-           ((org-agenda-overriding-header "\n⚡ Next Actions"))))) ; Close setq
+           ((org-agenda-overriding-header "\n⚡ Next Actions")
+            (org-agenda-remove-tags t)
+            (org-agenda-prefix-format "   %-2i ")
+            (org-agenda-todo-keyword-format ""))))) ; Close setq
   
-  ;; ============================================================================
-  ;; VISUAL ENHANCEMENT HOOKS
-  ;; ============================================================================
+  ;; Visual Enhancement Hooks
   
   (defun my/agenda-color-emoji ()
     "Enhance ⚡ emoji in agenda headers with larger size and gold color."
@@ -110,16 +97,11 @@
     (setq mode-line-format nil)          ;; Hide mode line
     (setq header-line-format " ")        ;; Minimal header
     (set-face-attribute 'header-line nil :background "#282a36")  ;; Match dracula bg
-    (set-window-margins (selected-window) 4))  ;; Left margin padding
+    (set-window-margins (selected-window) 4))
   
-  ;; Apply visual enhancements after agenda is rendered
   (add-hook 'org-agenda-finalize-hook #'my/set-agenda-window-clean)
   
-  ;; ============================================================================
-  ;; AGENDA KEYBINDINGS
-  ;; ============================================================================
-  
-  ;; Enhanced agenda keybindings for workflow integration
+  ;; Agenda Keybindings
   (define-key org-agenda-mode-map (kbd "i") #'my/goto-inbox)
   (define-key org-agenda-mode-map (kbd "r") #'org-agenda-redo-all)) ; Close with-eval-after-load
 

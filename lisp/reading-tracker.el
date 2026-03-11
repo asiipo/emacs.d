@@ -1,16 +1,6 @@
 ;;; reading-tracker.el --- Minimal reading progress tracker -*- lexical-binding: t; -*-
-
-;; Version: 3.0 - Clean rebuild
-;; Author: arttusii
-;; Description: Simple reading tracker for org workflow
-
 ;;; Commentary:
-;;
-;; Lightweight reading progress tracker with essential functionality:
-;; - Add books with metadata
-;; - Track reading progress  
-;; - Mark books as complete
-;; - Basic statistics
+;; Reading tracker: add books, track progress, mark complete, view stats.
 
 ;;; Code:
 
@@ -21,30 +11,32 @@
 (defvar my/reading-file (expand-file-name "areas/reading.org" org-directory)
   "Path to the reading tracker file.")
 
+;; Buffer management
+(defun my/reading--get-buffer ()
+  "Get or create the reading tracker buffer efficiently."
+  (my/reading-ensure-file)
+  (or (find-buffer-visiting my/reading-file)
+      (find-file-noselect my/reading-file)))
+
 ;; File initialization
 (defun my/reading-ensure-file ()
   "Ensure reading file exists with basic structure."
   (unless (file-exists-p my/reading-file)
+    (let ((dir (file-name-directory my/reading-file)))
+      (unless (file-directory-p dir)
+        (make-directory dir t)))
     (with-temp-file my/reading-file
-      (insert "#+TITLE: Reading Tracker\n\n* Books\n")))
-  (with-current-buffer (find-file-noselect my/reading-file)
-    (org-with-wide-buffer
-      (goto-char (point-min))
-      (unless (re-search-forward "^\\* Books\\b" nil t)
-        (goto-char (point-max))
-        (insert "\n* Books\n"))
-      (save-buffer))))
+      (insert "#+TITLE: Reading Tracker\n\n* Books\n"))))
 
 ;; Core functions
 (defun my/reading-add-book ()
   "Add a new book to track."
   (interactive)
-  (my/reading-ensure-file)
   (let* ((title (read-string "Book title: "))
          (author (read-string "Author: "))
          (pages (read-number "Total pages: " 0))
          (deadline (read-string "Target completion date (YYYY-MM-DD, optional): ")))
-    (with-current-buffer (find-file-noselect my/reading-file)
+    (with-current-buffer (my/reading--get-buffer)
       (org-with-wide-buffer
         (goto-char (point-min))
         (re-search-forward "^\\* Books\\b")
@@ -60,8 +52,7 @@
 
 (defun my/reading-get-books ()
   "Get list of active books as (title . marker) pairs."
-  (my/reading-ensure-file)
-  (with-current-buffer (find-file-noselect my/reading-file)
+  (with-current-buffer (my/reading--get-buffer)
     (org-with-wide-buffer
       (goto-char (point-min))
       (let (books)
@@ -111,8 +102,6 @@
           (save-buffer))))
     (message "Completed: %s" title)))
 
-
-
 (defun my/reading-open ()
   "Open the reading tracker file."
   (interactive)
@@ -123,8 +112,7 @@
 (defun my/reading-get-current-books ()
   "Get current reading progress for dashboard display.
 Returns list of (title author current total progress daily-target) for each book."
-  (my/reading-ensure-file)
-  (with-current-buffer (find-file-noselect my/reading-file)
+  (with-current-buffer (my/reading--get-buffer)
     (org-with-wide-buffer
       (goto-char (point-min))
       (let (books)
@@ -169,7 +157,7 @@ Deadline is interpreted as end of day (23:59:59)."
     (when book-title
       (let ((deadline (read-string "Target completion date (YYYY-MM-DD): ")))
         (when (and deadline (not (string-empty-p deadline)))
-          (with-current-buffer (find-file-noselect my/reading-file)
+          (with-current-buffer (my/reading--get-buffer)
             (org-with-wide-buffer
               (goto-char (cdr (assoc book-title books)))
               (org-entry-put (point) "DEADLINE" (format "[%s]" deadline))
@@ -177,5 +165,4 @@ Deadline is interpreted as end of day (23:59:59)."
           (message "Deadline set for '%s': %s" book-title deadline))))))
 
 (provide 'reading-tracker)
-;;; reading-tracker.el ends here
 ;;; reading-tracker.el ends here

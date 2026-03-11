@@ -1,18 +1,7 @@
 ;;; gtd.el --- Simple GTD helpers -*- lexical-binding: t; -*-
-
 ;;; Commentary:
-;; Provides GTD daily logging functions for managing `gtd.org`.
-;;
-;; Main features:
-;; - `my/gtd-insert-today': Create/jump to today's headline with customizable
-;;   sections (default: Routines, Notes, Summary via `my/gtd-daily-sections')
-;; - `my/gtd-weekly-review': Show current week entries (ISO week-based)
-;; - `my/gtd-last-week-review': Show last week entries
-;; - `my/gtd-time-reports': Generate clocktable reports with tag aggregation
-;; - `my/gtd-open': Main entry point bound to C-c G
-;;
-;; All daily headline operations are idempotent: if a headline exists,
-;; the function will jump to it rather than creating a duplicate.
+;; GTD daily logging functions for managing `gtd.org`.
+;; Daily headlines are idempotent - jumps to existing or creates new.
 
 ;;; Code:
 

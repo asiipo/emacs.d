@@ -1,23 +1,12 @@
 ;;; path-utils.el --- Cross-platform path utilities -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; This module provides cross-platform path management utilities for
-;; consistently setting up system paths across Windows, macOS, and Linux.
-;; Ensures essential tools (LaTeX, Git) are available in Emacs.
+;; Cross-platform path management for essential tools (LaTeX, Git).
 
-;; Author: Personal Configuration
-;; Version: 1.0  
-;; Package-Requires: ((emacs "28.1"))
-;; Keywords: utilities, paths, cross-platform
-
-;; ============================================================================
-;; SYSTEM PATH UTILITIES
-;; ============================================================================
+;;; Code:
 
 (defun my/add-to-exec-path (paths)
-  "Add PATHS to exec-path and PATH environment variable.
-PATHS should be a list of directory paths to add.
-Only adds paths that exist and aren't already in exec-path."
+  "Add PATHS to exec-path and PATH if they exist."
   (let ((separator (if (eq system-type 'windows-nt) ";" ":")))
     (dolist (path paths)
       (when (and path 
@@ -27,7 +16,7 @@ Only adds paths that exist and aren't already in exec-path."
         (setenv "PATH" (concat (getenv "PATH") separator path))))))
 
 (defun my/find-texlive-paths ()
-  "Find available TeX Live paths for current system."
+  "Find TeX Live paths for current system."
   (let ((base-patterns (cond
                         ((eq system-type 'darwin)
                          '("/usr/local/texlive/*/bin/universal-darwin"
@@ -36,8 +25,7 @@ Only adds paths that exist and aren't already in exec-path."
                          '("/usr/local/texlive/*/bin/x86_64-linux"))
                         ((eq system-type 'windows-nt)
                          '("C:/texlive/*/bin/win32"
-                           "C:/texlive/*/bin/windows"))
-                        (t nil))))
+                           "C:/texlive/*/bin/windows")))))
     (when base-patterns
       (apply #'append 
              (mapcar (lambda (pattern)
@@ -45,25 +33,20 @@ Only adds paths that exist and aren't already in exec-path."
                      base-patterns)))))
 
 (defun my/setup-system-paths ()
-  "Set up system-specific executable paths with automatic TeX Live detection."
+  "Set up system-specific paths with TeX Live detection."
   (let ((texlive-paths (my/find-texlive-paths)))
     (cond
-     ;; Windows paths
      ((eq system-type 'windows-nt)
       (my/add-to-exec-path 
        (append '("C:/Program Files/MiKTeX/miktex/bin/x64"
                  "C:/Program Files/Git/bin")
                texlive-paths)))
-     
-     ;; macOS paths
      ((eq system-type 'darwin)
       (my/add-to-exec-path 
        (append '("/opt/homebrew/bin" 
                  "/usr/local/bin"
                  "/Library/TeX/texbin")
                texlive-paths)))
-     
-     ;; Linux paths
      ((eq system-type 'gnu/linux)
       (my/add-to-exec-path 
        (append '("/usr/local/bin"
@@ -71,12 +54,8 @@ Only adds paths that exist and aren't already in exec-path."
                  "/usr/texbin")
                texlive-paths))))))
 
-;; ============================================================================
-;; DIAGNOSTIC UTILITIES
-;; ============================================================================
-
 (defun my/check-essential-tools ()
-  "Check if essential tools are available in PATH and report status."
+  "Check if essential tools are available."
   (interactive)
   (let ((tools '(("LaTeX" . ("pdflatex" "latex"))
                  ("Git" . ("git"))
@@ -103,11 +82,10 @@ Only adds paths that exist and aren't already in exec-path."
                             (concat name ":")
                             (if exe 
                                 (format "✓ %s" exe)
-                              "✗ Not found")))))
-          (insert "\nNote: Install missing tools for full functionality."))
+                              "✗ Not found"))))))
       results)))
 
-;; Initialize paths on load
 (my/setup-system-paths)
 
 (provide 'path-utils)
+;;; path-utils.el ends here

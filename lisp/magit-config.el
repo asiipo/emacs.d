@@ -5,9 +5,7 @@
 
 (require 'subr-x)
 
-;; ============================================================================
 ;; MAGIT BASIC CONFIGURATION
-;; ============================================================================
 
 ;; Use same window behavior for popups (minimal window churn)
 (with-eval-after-load 'magit
@@ -23,9 +21,7 @@
           (message "Org directory is not a git repository")))
     (message "Org directory not found")))
 
-;; ============================================================================
 ;; AUTO-SYNC ORG DIRECTORY
-;; ============================================================================
 
 (defvar my/org-auto-sync-enabled t
   "Enable automatic Git sync for org directory.")
@@ -141,9 +137,7 @@ Only runs if enough time has passed since last sync and no other sync is running
   (message "Org auto-pull on startup %s" 
            (if my/org-auto-sync-enabled "ENABLED" "DISABLED")))
 
-;; ============================================================================
 ;; KEYBINDINGS
-;; ============================================================================
 ;; Keybindings are now centralized in keybindings.el
 
 ;; Initialize auto-sync when org-directory is available
