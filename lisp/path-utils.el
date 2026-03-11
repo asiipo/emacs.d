@@ -43,7 +43,8 @@
                texlive-paths)))
      ((eq system-type 'darwin)
       (my/add-to-exec-path 
-       (append '("/opt/homebrew/bin" 
+       (append (list (expand-file-name "~/.juliaup/bin"))
+               '("/opt/homebrew/bin" 
                  "/usr/local/bin"
                  "/Library/TeX/texbin")
                texlive-paths)))
@@ -60,6 +61,7 @@
   (let ((tools '(("LaTeX" . ("pdflatex" "latex"))
                  ("Git" . ("git"))
                  ("Python" . ("python3" "python"))
+                 ("Julia" . ("julia"))
                  ("Spell checking" . ("enchant-2" "aspell"))))
         (results '()))
     (dolist (tool-info tools)
