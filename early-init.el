@@ -38,8 +38,8 @@
 (add-to-list 'default-frame-alist '(vertical-scroll-bars))
 
 ;; Fullscreen on macOS
-(when (eq system-type 'darwin)
-  (add-to-list 'default-frame-alist '(fullscreen . fullscreen)))
+;; (when (eq system-type 'darwin)
+;;   (add-to-list 'default-frame-alist '(fullscreen . fullscreen)))
 
 (provide 'early-init)
 ;;; early-init.el ends here
